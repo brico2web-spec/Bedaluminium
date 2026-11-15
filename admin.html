@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="./supabase-client.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <script>
@@ -48,6 +49,13 @@
             <input id="admin-username" type="text" x-model.trim="loginForm.username" autocomplete="username" dir="ltr" required class="mb-5 w-full">
             <label class="mb-2 block text-sm font-bold" for="admin-password">كلمة المرور</label>
             <input id="admin-password" type="password" x-model="loginForm.password" autocomplete="current-password" dir="ltr" required class="mb-5 w-full">
+            <div class="mb-4 border-t pt-4">
+                <p class="mb-3 text-xs leading-5 text-slate-500">للمزامنة مع Supabase، دخل حساب المشرف اللي تدار من لوحة Supabase. تقدر تدخل محلياً بلاه، ولكن الحفظ غيبقى محلي.</p>
+                <label class="mb-2 block text-sm font-bold" for="supabase-email">بريد مشرف Supabase</label>
+                <input id="supabase-email" type="email" x-model.trim="loginForm.supabaseEmail" autocomplete="email" dir="ltr" class="mb-3 w-full">
+                <label class="mb-2 block text-sm font-bold" for="supabase-password">كلمة مرور Supabase</label>
+                <input id="supabase-password" type="password" x-model="loginForm.supabasePassword" autocomplete="current-password" dir="ltr" class="w-full">
+            </div>
             <p x-show="loginError" x-text="loginError" class="mb-4 text-sm font-bold text-red-600"></p>
             <button type="submit" class="w-full rounded-xl bg-admin-accent px-5 py-3 font-bold text-white transition hover:opacity-90">دخول</button>
         </form>
@@ -333,13 +341,13 @@
     </div>
 
     <!-- NOTIFICATION -->
-    <div x-show="showNotify" 
+    <div x-show="showNotify" :class="saveError ? 'bg-red-700' : 'bg-admin-dark'"
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0 translate-y-10"
          x-transition:enter-end="opacity-100 translate-y-0"
          class="fixed bottom-10 left-10 z-[100] bg-admin-dark text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4">
         <i class="fa-solid fa-circle-check text-green-500"></i>
-        <span class="text-sm font-bold">تم حفظ جميع التغييرات بنجاح!</span>
+        <span class="text-sm font-bold" x-text="saveError || 'تم حفظ جميع التغييرات بنجاح!'">تم حفظ جميع التغييرات بنجاح!</span>
     </div>
 
     <script>
@@ -347,14 +355,29 @@
             return {
                 activeMenu: 'identity',
                 showNotify: false,
+                saveError: '',
+                remoteReady: false,
+                remoteSaveTimer: null,
                 authenticated: false,
-                loginForm: { username: '', password: '' },
+                loginForm: { username: '', password: '', supabaseEmail: '', supabasePassword: '' },
                 loginError: '',
-                login() {
+                async login() {
                     if (this.loginForm.username === 'Zamzam' && this.loginForm.password === '1463414634') {
+                        if (!this.loginForm.supabaseEmail || !this.loginForm.supabasePassword) {
+                            this.loginError = 'أدخل بريد وكلمة مرور مشرف Supabase باش يتفعل الحفظ المشترك.';
+                            return;
+                        }
+                        try {
+                            await window.bedAluSupabase.signIn(this.loginForm.supabaseEmail, this.loginForm.supabasePassword);
+                        } catch (error) {
+                            this.loginError = 'تعذر دخول Supabase: ' + error.message;
+                            return;
+                        }
                         this.authenticated = true;
                         this.loginError = '';
                         this.loginForm.password = '';
+                        this.loginForm.supabasePassword = '';
+                        this.loadSupabaseAdmin();
                     } else {
                         this.loginError = 'اسم المستخدم أو كلمة المرور غير صحيحة.';
                     }
@@ -467,15 +490,29 @@
                 removeCalculatorProduct(index) { if (this.siteData.calculatorProducts.length > 1) this.siteData.calculatorProducts.splice(index, 1); },
                 pendingTestimonials: [],
                 savePendingTestimonials() { localStorage.setItem('bedAlu_pendingTestimonials', JSON.stringify(this.pendingTestimonials)); },
-                approveTestimonial(index) {
-                    const review = this.pendingTestimonials.splice(index, 1)[0];
+                async approveTestimonial(index) {
+                    const review = this.pendingTestimonials[index];
                     if (!review) return;
+                    if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(review.id)) {
+                        try { await window.bedAluSupabase.moderateTestimonial(review.id, 'approved'); }
+                        catch (error) { this.saveError = 'تعذر تحديث التعليق في Supabase.'; this.notifySaved(); return; }
+                    }
+                    this.pendingTestimonials.splice(index, 1);
                     if (!Array.isArray(this.siteData.approvedTestimonials)) this.siteData.approvedTestimonials = [];
                     this.siteData.approvedTestimonials.push(review);
                     this.savePendingTestimonials();
                     localStorage.setItem('bedAlu_data', JSON.stringify(this.siteData));
                 },
-                rejectTestimonial(index) { this.pendingTestimonials.splice(index, 1); this.savePendingTestimonials(); },
+                async rejectTestimonial(index) {
+                    const review = this.pendingTestimonials[index];
+                    if (!review) return;
+                    if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(review.id)) {
+                        try { await window.bedAluSupabase.moderateTestimonial(review.id, 'rejected'); }
+                        catch (error) { this.saveError = 'تعذر رفض التعليق في Supabase.'; this.notifySaved(); return; }
+                    }
+                    this.pendingTestimonials.splice(index, 1);
+                    this.savePendingTestimonials();
+                },
 
                 removeProject(index) {
                     if (confirm("هل أنت متأكد من حذف هذه الصورة؟")) {
@@ -486,8 +523,34 @@
                 saveAll() {
                     // محاكاة حفظ البيانات في LocalStorage
                     localStorage.setItem('bedAlu_data', JSON.stringify(this.siteData));
+                    this.saveError = '';
+                    window.bedAluSupabase.saveSiteData(this.siteData).then(() => this.notifySaved()).catch(() => {
+                        this.saveError = 'فشل الحفظ في Supabase. تحقق من حساب المشرف وسياسات قاعدة البيانات.';
+                        this.notifySaved();
+                    });
+                },
+
+                notifySaved() {
                     this.showNotify = true;
                     setTimeout(() => this.showNotify = false, 3000);
+                },
+
+                async loadSupabaseAdmin() {
+                    if (!sessionStorage.getItem('bedAlu_supabase_access_token')) return;
+                    try {
+                        const remote = await window.bedAluSupabase.getSiteData();
+                        if (remote) {
+                            this.siteData = this.mergeDefaults(this.siteData, this.repairSavedText(remote));
+                            localStorage.setItem('bedAlu_data', JSON.stringify(this.siteData));
+                        } else {
+                            await window.bedAluSupabase.saveSiteData(this.siteData);
+                        }
+                        this.pendingTestimonials = await window.bedAluSupabase.getTestimonials('pending');
+                        this.remoteReady = true;
+                    } catch (error) {
+                        this.saveError = 'تعذر تحميل بيانات Supabase؛ تحقق من صلاحيات المشرف.';
+                        this.notifySaved();
+                    }
                 },
 
                 init() {
@@ -502,6 +565,21 @@
                         }
                     }
                     this.pendingTestimonials = this.repairSavedText(JSON.parse(localStorage.getItem('bedAlu_pendingTestimonials') || '[]'));
+                    this.$watch('siteData', value => {
+                        localStorage.setItem('bedAlu_data', JSON.stringify(value));
+                        if (!this.remoteReady || !sessionStorage.getItem('bedAlu_supabase_access_token')) return;
+                        clearTimeout(this.remoteSaveTimer);
+                        this.remoteSaveTimer = setTimeout(async () => {
+                            try {
+                                await window.bedAluSupabase.saveSiteData(this.siteData);
+                                this.saveError = '';
+                            } catch (error) {
+                                this.saveError = 'فشل الحفظ التلقائي في Supabase. أعد تسجيل الدخول وتحقق من الصلاحيات.';
+                                this.notifySaved();
+                            }
+                        }, 800);
+                    });
+                    this.loadSupabaseAdmin();
                     window.addEventListener('storage', event => {
                         if (event.key === 'bedAlu_pendingTestimonials' && event.newValue) this.pendingTestimonials = this.repairSavedText(JSON.parse(event.newValue));
                         if (event.key === 'bedAlu_data' && event.newValue) this.siteData = this.mergeDefaults(this.siteData, this.repairSavedText(JSON.parse(event.newValue)));

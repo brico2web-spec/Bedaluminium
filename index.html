@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="./supabase-client.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <script>
@@ -370,6 +371,7 @@
                     const products = this.getCalculatorProducts();
                     if (!products.some(product => product.id === this.calc.type)) this.calc.type = products[0]?.id || 'window';
                     this.approvedTestimonials = Array.isArray(this.siteData.approvedTestimonials) ? this.siteData.approvedTestimonials : [];
+                    this.syncSupabase();
                     window.addEventListener('storage', event => {
                         if (event.key === 'bedAlu_data' && event.newValue) {
                             this.siteData = this.repairSavedText(JSON.parse(event.newValue));
@@ -380,6 +382,22 @@
                     setInterval(() => { this.activeSlide = (this.activeSlide + 1) % this.getSliderImages().length }, 7000);
                     setInterval(() => this.advanceCarousel('review'), 6500);
                     setInterval(() => { if (this.getPartners().length > 1) this.advanceCarousel('partner'); }, 6500);
+                },
+
+                async syncSupabase() {
+                    if (!window.bedAluSupabase) return;
+                    try {
+                        const remoteData = await window.bedAluSupabase.getSiteData();
+                        if (remoteData) {
+                            this.siteData = this.repairSavedText(remoteData);
+                            localStorage.setItem('bedAlu_data', JSON.stringify(this.siteData));
+                        }
+                        const reviews = await window.bedAluSupabase.getTestimonials('approved');
+                        this.approvedTestimonials = reviews || [];
+                        this.activeReview = 0;
+                    } catch (error) {
+                        console.warn('Supabase is not configured yet; using local site data.', error);
+                    }
                 },
 
                 repairSavedText(value) {
@@ -430,10 +448,16 @@
                     if (/^[\u0600-\u06FF]/.test(parts[0] || '') && ['عبد','فاطمة','نهى'].includes(parts[0]) && parts[1]) return parts.slice(0,2).join(' ');
                     return parts[0] || '';
                 },
-                submitTestimonial() {
+                async submitTestimonial() {
                     const pending = JSON.parse(localStorage.getItem('bedAlu_pendingTestimonials') || '[]');
-                    pending.push({ id:`review-${Date.now()}-${Math.random().toString(36).slice(2,7)}`, name:this.firstName(this.testimonialForm.name), location:this.testimonialForm.location, comment:this.testimonialForm.comment, language:this.lang, createdAt:new Date().toISOString() });
-                    localStorage.setItem('bedAlu_pendingTestimonials', JSON.stringify(pending));
+                    const review = { id:`review-${Date.now()}-${Math.random().toString(36).slice(2,7)}`, name:this.firstName(this.testimonialForm.name), location:this.testimonialForm.location, comment:this.testimonialForm.comment, language:this.lang, createdAt:new Date().toISOString() };
+                    try {
+                        await window.bedAluSupabase.addTestimonial(review);
+                    } catch (error) {
+                        console.warn('Supabase review submission failed; saving locally.', error);
+                        pending.push(review);
+                        localStorage.setItem('bedAlu_pendingTestimonials', JSON.stringify(pending));
+                    }
                     this.testimonialForm = { name:'', location:'', comment:'' };
                     this.testimonialNotice = true;
                     setTimeout(() => this.testimonialNotice = false, 5000);
