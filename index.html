@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="fr" :lang="lang" :dir="lang === 'ar' ? 'rtl' : 'ltr'" x-data="bedAluApp()">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>bedaluminium | Aluminium et verre à Kénitra</title>
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        arch: { offwhite: '#FAF9F6', charcoal: '#1A1A1A', bronze: '#B45309', gold: '#FBBF24' }
+                    },
+                    fontFamily: { sans: ['Cairo', 'Montserrat', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        .text-focus-gold { color: #FBBF24; text-shadow: 0 0 15px rgba(251, 191, 36, 0.6); font-style: italic; }
+        .glass-nav { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+        .slider-overlay { background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.6) 100%); }
+        
+        /* One visible hero image at a time; every image uses the same steady camera move. */
+        .hero-slide-image { transform: scale(1.055); will-change: transform; }
+        .hero-slide-image.is-active { animation: heroCameraMove 7s linear both; }
+        @keyframes heroCameraMove {
+            from { transform: scale(1.055) translate3d(0,0,0); }
+            to { transform: scale(1.01) translate3d(-.35%,0,0); }
+        }
+        @media (prefers-reduced-motion: reduce) { .hero-slide-image.is-active { animation: none; transform: none; } }
+
+        /* 3D Flip Cards */
+        .flip-card { perspective: 1000px; width: 100%; max-width: 300px; height: 180px; }
+        .flip-card-inner { position: relative; width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; cursor: pointer; }
+        .flip-card:hover .flip-card-inner { transform: rotateY(180deg); }
+        .flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 1rem; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 1.5rem; }
+        .flip-card-back { transform: rotateY(180deg); background: #fdfdfd; border: 2px solid #B45309; }
+        .project-card img { transition: transform .7s cubic-bezier(.2,.8,.2,1); }
+        .project-card:hover img { transform: scale(1.08); }
+        .service-card { background: linear-gradient(135deg,#fff 0%,#f6f3ee 100%); }
+        [dir="rtl"] .text-focus-gold { font-style: normal; }
+        .review-stage { min-height: 18rem; }
+        .carousel-card { transition: opacity .35s ease, transform .35s ease; }
+        .carousel-card.is-hidden { opacity: 0; transform: translateY(12px); pointer-events: none; }
+        .carousel-card.is-visible { opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body class="bg-arch-offwhite text-arch-charcoal antialiased" x-init="init()">
+
+    <!-- NAVIGATION -->
+    <nav class="fixed top-0 w-full z-[100] glass-nav border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <!-- Brand -->
+            <div class="flex items-center gap-3 cursor-pointer" @click="activeTab = 'home'">
+                <div class="w-12 h-12 bg-arch-charcoal rounded-xl shadow-lg flex items-center justify-center overflow-hidden border border-arch-bronze/20">
+                    <img x-show="siteData.logo" :src="siteData.logo" class="w-full h-full object-cover">
+                    <span x-show="!siteData.logo" class="text-arch-bronze font-bold text-2xl">B</span>
+                </div>
+                <div class="hidden sm:block">
+                    <h1 class="text-lg font-bold tracking-tighter uppercase leading-none" x-text="siteData.name || 'bedaluminium'"></h1>
+                    <p class="text-[8px] uppercase tracking-[0.3em] text-gray-400 mt-1" x-text="content[lang].tagline"></p>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="hidden lg:flex items-center gap-8">
+                    <template x-for="tab in tabs">
+                    <button x-show="tab.id !== 'calc' || !siteData.features || siteData.features.calc !== false" @click="activeTab = tab.id" 
+                            class="text-[11px] font-bold uppercase tracking-widest transition-all relative py-2"
+                            :class="activeTab === tab.id ? 'text-arch-bronze' : 'text-gray-400 hover:text-arch-charcoal'">
+                        <span x-text="content[lang].nav[tab.id]"></span>
+                        <span x-show="activeTab === tab.id" class="absolute bottom-0 left-0 w-full h-0.5 bg-arch-bronze"></span>
+                    </button>
+                </template>
+            </div>
+
+            <!-- Lang & CTA -->
+            <div class="flex items-center gap-4">
+                <div class="relative" @click.outside="langMenuOpen = false">
+                    <button @click="langMenuOpen = !langMenuOpen" class="text-xs font-bold bg-gray-100 px-4 py-2 rounded-lg hover:bg-arch-charcoal hover:text-white transition inline-flex items-center gap-2" :aria-label="content[lang].language" :aria-expanded="langMenuOpen"><span x-text="languageName()"></span><i class="fa-solid fa-chevron-down text-[9px]"></i></button>
+                    <div x-show="langMenuOpen" x-transition class="absolute top-full mt-2 right-0 min-w-36 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-[120]">
+                        <template x-for="option in languageOptions" :key="option.id"><button @click="setLanguage(option.id)" class="w-full px-4 py-3 text-sm text-start hover:bg-arch-offwhite" :class="lang === option.id ? 'text-arch-bronze font-bold' : 'text-gray-600'" x-text="option.label"></button></template>
+                    </div>
+                </div>
+                <button @click="activeTab = 'contact'" class="bg-arch-charcoal text-white px-6 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-xl hover:bg-arch-bronze transition">
+                    <span x-text="content[lang].nav.cta"></span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="pt-20">
+
+        <!-- HOME SECTION -->
+        <section x-show="activeTab === 'home'" x-cloak class="fade-in">
+            <!-- Hero Slider -->
+            <div class="relative h-[85vh] w-full overflow-hidden">
+                <template x-for="(img, index) in getSliderImages()" :key="img + '-' + index">
+                    <div x-show="activeSlide === index" class="absolute inset-0 w-full h-full">
+                        <img :src="img" class="hero-slide-image absolute inset-0 w-full h-full object-cover" :class="{ 'is-active': activeSlide === index }">
+                    </div>
+                </template>
+                <div class="absolute inset-0 slider-overlay z-10"></div>
+                <div class="absolute inset-0 flex flex-col justify-center items-center text-center px-6 z-20">
+                    <h2 class="text-white text-5xl md:text-8xl font-bold mb-6 leading-tight tracking-tighter"><span x-text="siteData.hero?.['title_' + lang] || content[lang].hero.heading"></span><br><span class="text-focus-gold" x-text="siteData.hero?.['accent_' + lang] || content[lang].hero.accent"></span></h2>
+                    <p class="text-gray-300 text-lg md:text-xl font-light mb-12 max-w-2xl" x-text="siteData.hero?.['desc_' + lang] || content[lang].hero.desc"></p>
+                    <div class="flex flex-wrap justify-center gap-6">
+                        <button x-show="!siteData.features || siteData.features.calc !== false" @click="activeTab = 'calc'" class="bg-arch-bronze text-white px-12 py-4 rounded-full text-[11px] font-bold uppercase tracking-widest shadow-2xl hover:scale-105 transition">
+                            <span x-text="siteData.hero?.['btn_' + lang] || content[lang].hero.btn1"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bento Access -->
+            <div class="max-w-7xl mx-auto px-6 -mt-20 relative z-30 pb-12">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <template x-for="item in bentoItems">
+                        <div @click="activeTab = item.tab" class="bg-white p-8 rounded-[2rem] shadow-2xl cursor-pointer group hover:-translate-y-2 transition-all border border-gray-100">
+                            <div class="w-14 h-14 bg-arch-offwhite rounded-xl flex items-center justify-center mb-6 group-hover:bg-arch-bronze transition-colors">
+                                <i :class="item.icon" class="text-2xl text-arch-bronze group-hover:text-white"></i>
+                            </div>
+                            <h3 class="text-xl font-bold mb-2" x-text="content[lang].bento[item.key].t"></h3>
+                            <p class="text-gray-400 text-xs leading-relaxed" x-text="content[lang].bento[item.key].d"></p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+
+        <!-- PARTNERS -->
+        <section x-show="activeTab === 'home'" x-cloak class="py-10 md:py-14 px-6 bg-arch-offwhite">
+            <div class="max-w-5xl mx-auto text-center">
+                <span class="text-arch-bronze text-xs font-bold tracking-[.2em]" x-text="content[lang].partners.eyebrow"></span>
+                <h3 class="text-3xl md:text-5xl font-bold mt-3 mb-4" x-text="content[lang].partners.title"></h3>
+                <p class="text-gray-500 mb-9" x-text="content[lang].partners.desc"></p>
+                <template x-if="getPartners().length">
+                    <div class="review-stage relative rounded-[2rem] bg-white border border-stone-100 shadow-xl p-7 md:p-12 flex items-center justify-center overflow-hidden">
+                        <template x-for="(partner, index) in getPartners()" :key="partner.id || index">
+                            <article x-show="activePartner === index" @click="activeTab = 'partners'" class="carousel-card absolute inset-0 p-7 md:p-12 flex flex-col justify-center items-center text-center cursor-pointer" :class="partnerVisible ? 'is-visible' : 'is-hidden'" :aria-hidden="activePartner !== index">
+                                <span class="w-16 h-16 rounded-2xl bg-arch-charcoal text-arch-gold flex items-center justify-center text-2xl mb-5"><i class="fa-solid fa-handshake"></i></span>
+                                <h4 class="text-2xl md:text-3xl font-bold" x-text="partner.name"></h4>
+                                <p class="text-arch-bronze font-bold mt-2" x-text="partner.field"></p>
+                                <p class="text-gray-500 mt-4" x-text="partner.address"></p>
+                                <p class="text-gray-600 mt-2" dir="ltr" x-text="partner.phone"></p>
+                                <a x-show="partner.whatsapp || partner.phone" @click.stop :href="partnerWhatsappUrl(partner.whatsapp || partner.phone)" target="_blank" rel="noopener noreferrer" class="mt-6 inline-flex items-center gap-2 rounded-full bg-arch-bronze px-7 py-3 text-white font-bold hover:bg-arch-charcoal transition"><i class="fa-brands fa-whatsapp"></i><span x-text="content[lang].partners.whatsapp"></span></a>
+                            </article>
+                        </template>
+                    </div>
+                </template>
+                <p x-show="!getPartners().length" class="rounded-2xl border border-dashed border-arch-bronze/40 bg-white p-8 text-gray-500" x-text="content[lang].partners.empty"></p>
+                <button x-show="getPartners().length" @click="activeTab = 'partners'" class="mt-6 rounded-full border border-arch-bronze px-7 py-3 text-sm font-bold text-arch-bronze hover:bg-arch-bronze hover:text-white transition" x-text="content[lang].partners.viewAll"></button>
+            </div>
+        </section>
+
+        <!-- PARTNERS PAGE -->
+        <section x-show="activeTab === 'partners'" x-cloak class="min-h-[70vh] py-12 px-6 max-w-7xl mx-auto">
+            <header class="text-center mb-14"><span class="text-arch-bronze text-xs font-bold tracking-[.2em]" x-text="content[lang].partners.eyebrow"></span><h3 class="text-4xl md:text-5xl font-bold mt-3" x-text="content[lang].partners.title"></h3><p class="mt-4 text-gray-500" x-text="content[lang].partners.desc"></p></header>
+            <div x-show="getPartners().length" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-7">
+                <template x-for="(partner, index) in getPartners()" :key="partner.id || index">
+                    <article class="partner-business-card relative min-h-[330px] overflow-hidden rounded-[2rem] border border-white shadow-xl p-7 md:p-8 flex flex-col transition duration-500 hover:-translate-y-2 hover:shadow-2xl" :style="{ backgroundColor: getPartnerCardColor(partner) }">
+                        <div class="absolute -top-14 -right-12 h-44 w-44 rounded-full bg-white/45 blur-2xl pointer-events-none"></div>
+                        <div class="relative flex items-start justify-between gap-3 border-b border-arch-charcoal/10 pb-5">
+                            <div class="flex items-center gap-4 min-w-0"><span class="w-14 h-14 shrink-0 rounded-2xl bg-white/75 text-arch-bronze flex items-center justify-center text-xl font-black shadow-sm" x-text="partner.name ? partner.name.trim().charAt(0).toUpperCase() : 'B'"></span><div class="min-w-0"><h4 class="font-bold text-xl truncate" x-text="partner.name || content[lang].partners.namePlaceholder"></h4><p class="text-sm text-arch-bronze font-bold mt-1" x-text="partner.field"></p></div></div>
+                            <span class="text-[10px] font-bold tracking-widest text-arch-charcoal/50" x-text="String(index + 1).padStart(2, '0')"></span>
+                        </div>
+                        <div class="relative flex-1 space-y-4 py-6 text-sm text-arch-charcoal/75">
+                            <p class="flex items-start gap-3"><i class="fa-solid fa-location-dot mt-1 text-arch-bronze"></i><span x-text="partner.address"></span></p>
+                            <a :href="'tel:' + String(partner.phone || '').replace(/\s/g, '')" class="flex items-center gap-3 hover:text-arch-bronze transition"><i class="fa-solid fa-phone text-arch-bronze"></i><span dir="ltr" x-text="partner.phone"></span></a>
+                        </div>
+                        <a x-show="partner.whatsapp || partner.phone" :href="partnerWhatsappUrl(partner.whatsapp || partner.phone)" target="_blank" rel="noopener noreferrer" class="relative inline-flex items-center justify-center gap-2 rounded-full bg-arch-charcoal px-6 py-3 text-white font-bold hover:bg-arch-bronze transition"><i class="fa-brands fa-whatsapp"></i><span x-text="content[lang].partners.whatsapp"></span></a>
+                        <div class="absolute bottom-0 left-0 h-1.5 w-full bg-arch-bronze/70"></div>
+                    </article>
+                </template>
+            </div>
+            <p x-show="!getPartners().length" class="rounded-2xl border border-dashed border-arch-bronze/40 bg-white p-8 text-center text-gray-500" x-text="content[lang].partners.empty"></p>
+        </section>
+
+        <!-- TESTIMONIALS -->
+        <section x-show="activeTab === 'home'" x-cloak class="py-10 md:py-14 px-6 bg-white">
+            <div class="max-w-5xl mx-auto">
+                <div class="text-center mb-10">
+                    <span class="text-arch-bronze text-xs font-bold tracking-[.2em]" x-text="content[lang].reviews.eyebrow"></span>
+                    <h3 class="text-3xl md:text-5xl font-bold mt-3" x-text="content[lang].reviews.title"></h3>
+                </div>
+                <div x-show="getVisibleReviews().length" class="review-stage relative rounded-[2rem] bg-arch-offwhite border border-stone-100 shadow-xl p-7 md:p-12 flex items-center justify-center overflow-hidden">
+                    <article class="carousel-card absolute inset-0 p-7 md:p-12 flex flex-col justify-center items-center text-center" :class="reviewVisible ? 'is-visible' : 'is-hidden'">
+                            <div class="flex gap-1 text-arch-bronze mb-6" aria-label="5 stars"><template x-for="star in 5"><i class="fa-solid fa-star"></i></template></div>
+                            <p class="text-xl md:text-2xl leading-relaxed max-w-3xl" x-text="getVisibleReviews()[activeReview]?.text[lang] || getVisibleReviews()[activeReview]?.text.ar || getVisibleReviews()[activeReview]?.text.fr || getVisibleReviews()[activeReview]?.text.en || ''"></p>
+                            <div class="mt-7 flex items-center gap-3"><span class="w-11 h-11 rounded-full bg-arch-charcoal text-arch-gold flex items-center justify-center"><i class="fa-solid fa-user"></i></span><div class="text-start"><p class="font-bold" x-text="getVisibleReviews()[activeReview]?.name[lang] || ''"></p><p x-show="getVisibleReviews()[activeReview]?.location" class="text-xs text-gray-500" x-text="getVisibleReviews()[activeReview]?.location"></p></div></div>
+                    </article>
+                </div>
+                <p x-show="!getVisibleReviews().length" class="rounded-2xl border border-dashed border-arch-bronze/30 bg-arch-offwhite p-8 text-center text-gray-600" x-text="content[lang].reviews.empty"></p>
+            </div>
+        </section>
+
+        <!-- SERVICES SECTION -->
+        <section x-show="activeTab === 'services'" x-cloak class="py-12 px-6 max-w-7xl mx-auto">
+            <div class="text-center mb-12">
+                <span class="text-arch-bronze font-bold tracking-[0.4em] uppercase text-[10px]" x-text="content[lang].nav.services"></span>
+                <h3 class="text-5xl font-bold mt-4 tracking-tighter" x-text="siteData.sectionTitles?.['services_' + lang] || content[lang].services.title"></h3>
+            </div>
+            <div class="space-y-8">
+                <template x-for="(s, index) in getServices()">
+                    <div class="service-card relative flex flex-col lg:items-center gap-0 rounded-[2rem] overflow-hidden border border-stone-200 shadow-xl" :class="index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'">
+                        <div class="relative flex-1 h-[300px] lg:h-[390px] overflow-hidden">
+                            <img :src="s.img" class="w-full h-full object-cover transition duration-700 hover:scale-105">
+                            <span class="absolute top-6 left-6 bg-white/90 text-arch-bronze px-4 py-2 rounded-full text-xs font-bold" x-text="String(index + 1).padStart(2, '0')"></span>
+                        </div>
+                        <div class="flex-1 p-8 md:p-12 space-y-6">
+                            <div class="w-14 h-14 bg-arch-charcoal rounded-2xl flex items-center justify-center text-arch-bronze shadow-lg">
+                                <i :class="s.icon" class="text-xl"></i>
+                            </div>
+                            <h4 class="text-4xl font-bold tracking-tighter" x-text="lang === 'ar' ? s.t_ar : (lang === 'en' ? (s.t_en || content.en.services.fallbackTitle) : s.t_fr)"></h4>
+                            <p class="text-gray-500 text-lg font-light leading-relaxed" x-text="lang === 'ar' ? s.d_ar : (lang === 'en' ? (s.d_en || content.en.services.fallbackDescription) : s.d_fr)"></p>
+                            <button @click="activeTab = 'contact'" class="inline-flex items-center gap-3 text-arch-bronze font-bold text-sm border-b-2 border-arch-bronze pb-2" x-text="content[lang].services.more"></button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </section>
+
+        <!-- GALLERY SECTION -->
+        <section x-show="activeTab === 'gallery'" x-cloak class="py-12 px-6 max-w-7xl mx-auto">
+            <header class="mb-12 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                <div><p class="text-arch-bronze text-xs font-bold tracking-[.25em] mb-3" x-text="content[lang].nav.gallery"></p><h3 class="text-4xl md:text-5xl font-bold" x-text="siteData.sectionTitles?.['gallery_' + lang] || content[lang].gallery.title"></h3></div>
+                <p class="text-arch-bronze font-semibold max-w-md" x-text="siteData.galleryText?.['desc_' + lang] || content[lang].gallery.desc"></p>
+            </header>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <template x-for="(project, index) in getProjects()" :key="project.id || index">
+                    <article @click="openProject(index)" @keydown.enter.prevent="openProject(index)" @keydown.space.prevent="openProject(index)" role="button" tabindex="0" class="project-card group relative h-[360px] w-full text-start rounded-[2rem] overflow-hidden shadow-lg bg-stone-200 cursor-zoom-in">
+                        <img :src="project.image" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/5 to-transparent"></div>
+                        <div class="absolute bottom-0 inset-x-0 p-7 text-white"><span class="text-arch-gold text-xs font-bold tracking-widest" x-text="String(index + 1).padStart(2, '0')"></span><h4 class="text-xl font-bold mt-2" x-text="projectTitle(project, index)"></h4><p class="text-white/85 text-sm mt-1" x-text="projectCaption(project)"></p></div>
+                        <span class="absolute top-5 right-5 w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center text-white"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>
+                    </article>
+                </template>
+            </div>
+        </section>
+
+        <!-- CALCULATOR SECTION -->
+        <section x-show="activeTab === 'calc' && (!siteData.features || siteData.features.calc !== false)" x-cloak class="py-12 px-6">
+            <div class="max-w-4xl mx-auto bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col md:flex-row">
+                <div class="p-8 flex-1 space-y-6">
+                    <h3 class="text-3xl font-bold" x-text="siteData.sectionTitles?.['calc_' + lang] || content[lang].calc.t"></h3>
+                    <div class="space-y-6">
+                        <select x-model="calc.type" class="w-full bg-arch-offwhite rounded-xl p-4 outline-none border-r-4 border-arch-bronze">
+                            <template x-for="product in getCalculatorProducts()" :key="product.id"><option :value="product.id" x-text="calculatorProductName(product)"></option></template>
+                        </select>
+                        <p class="text-base font-bold text-arch-bronze" x-text="content[lang].calc.unitRate"></p>
+                        <label class="block text-sm font-bold" x-text="content[lang].calc.tierLabel"></label>
+                        <div class="grid grid-cols-3 gap-3">
+                            <template x-for="tier in tiers" :key="tier.id">
+                                <button type="button" @click="calc.tier = tier.id" class="rounded-xl border p-3 text-xs font-bold transition" :class="calc.tier === tier.id ? 'border-arch-bronze bg-arch-bronze text-white shadow-lg' : 'border-gray-200 bg-white hover:border-arch-bronze'" x-text="content[lang].calc.tiers[tier.id]"></button>
+                            </template>
+                        </div>
+                        <p class="rounded-xl bg-arch-offwhite px-4 py-3 text-sm font-semibold text-arch-bronze" x-text="content[lang].calc.note"></p>
+                    </div>
+                </div>
+                <div class="bg-arch-charcoal p-8 text-center text-white w-full md:w-80 flex flex-col justify-center items-center">
+                    <span class="text-[10px] uppercase tracking-widest mb-4" x-text="content[lang].calc.estimate"></span>
+                    <div class="text-5xl font-bold text-arch-bronze mb-10" x-text="calculateTotal()"></div>
+                    <button @click="sendWA()" class="w-full bg-arch-bronze py-4 rounded-full text-[10px] font-bold tracking-widest" x-text="content[lang].calc.request"></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- CONTACT SECTION -->
+        <section x-show="activeTab === 'contact'" x-cloak class="py-12 px-6 max-w-7xl mx-auto">
+            <div class="text-center mb-12">
+                <h3 class="text-5xl font-bold tracking-tighter" x-text="siteData.sectionTitles?.['team_' + lang] || content[lang].team.t"></h3>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+                <div class="space-y-6">
+                    <div class="flex items-center gap-6 p-6 bg-white rounded-2xl shadow-sm">
+                        <i class="fa-solid fa-phone text-2xl text-arch-bronze"></i>
+                        <div><p class="text-xs text-gray-400 font-bold" x-text="content[lang].contact.phone"></p><p class="font-bold text-xl" x-text="siteData.phone || '06 00 00 00 00'"></p></div>
+                    </div>
+                    <div class="flex items-center gap-6 p-6 bg-white rounded-2xl shadow-sm">
+                        <i class="fa-solid fa-location-dot text-2xl text-arch-bronze"></i>
+                        <div><p class="text-xs text-gray-400 font-bold" x-text="content[lang].contact.location"></p><p class="font-bold text-xl" x-text="siteData['address_' + lang] || (lang === 'ar' ? (siteData.address || content[lang].contact.address) : content[lang].contact.address)"></p></div>
+                    </div>
+                </div>
+                <!-- Team cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <template x-for="person in getTeam()">
+                        <div class="relative min-h-64 overflow-hidden rounded-[2rem] bg-arch-charcoal p-8 text-white shadow-xl">
+                            <div class="absolute -top-12 -right-8 h-40 w-40 rounded-full bg-arch-bronze/20 blur-2xl"></div>
+                            <div class="relative flex h-full flex-col items-start">
+                                <div class="mb-8 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 text-arch-gold"><i class="fa-solid fa-user-tie text-2xl"></i></div>
+                                <h4 class="font-bold text-xl" x-text="person.name"></h4>
+                                <span class="mt-2 text-sm text-white/65" x-text="lang === 'ar' ? ((person.role_ar || person.role || 'فريق العمل').split('/')[0].trim()) : (lang === 'en' ? (person.role_en || 'Our team') : (person.role_fr || 'Notre équipe'))"></span>
+                                <a :href="'tel:' + person.phone.replaceAll(' ', '')" class="mt-auto pt-6 inline-flex items-center gap-3 text-arch-gold font-bold"><i class="fa-solid fa-phone"></i><span x-text="person.phone"></span></a>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- PROJECT IMAGE LIGHTBOX -->
+    <div x-show="projectModalOpen" x-cloak x-transition.opacity @click.self="closeProject()" @keydown.escape.window="closeProject()" class="fixed inset-0 z-[250] bg-black/90 p-4 md:p-8 flex items-center justify-center" role="dialog" aria-modal="true" :aria-label="content[lang].gallery.title">
+        <div class="relative w-full max-w-6xl max-h-full rounded-2xl overflow-hidden bg-black shadow-2xl">
+            <button @click="closeProject()" class="absolute top-4 right-4 z-10 w-11 h-11 rounded-full bg-black/60 text-white hover:bg-arch-bronze transition" :aria-label="content[lang].gallery.close"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <img :src="getProjects()[activeProjectIndex]?.image" class="w-full max-h-[78vh] object-contain" :alt="projectTitle(getProjects()[activeProjectIndex] || {}, activeProjectIndex)">
+            <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/55 to-transparent px-6 pt-14 pb-6 md:px-10 md:pb-9 text-white">
+                <h3 class="text-xl md:text-3xl font-bold" x-text="projectTitle(getProjects()[activeProjectIndex] || {}, activeProjectIndex)"></h3>
+                <p class="mt-2 text-white/85 text-sm md:text-base" x-text="projectCaption(getProjects()[activeProjectIndex] || {})"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- WHATSAPP -->
+    <footer class="bg-arch-charcoal text-white px-6 py-10">
+        <div class="max-w-7xl mx-auto flex flex-col gap-8">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div><p class="font-bold text-lg" x-text="siteData.name || 'bedaluminium'"></p><p class="text-white/60 text-sm mt-1" x-text="content[lang].footer"></p><p class="text-white/40 text-xs mt-2" x-text="content[lang].version + ' ' + (siteData.version || '1.0.0')"></p></div>
+                <div class="flex items-center gap-3">
+                    <a :href="siteData.facebook || 'https://www.facebook.com/'" target="_blank" rel="noopener noreferrer" class="w-11 h-11 rounded-full bg-white/10 text-arch-gold hover:bg-arch-bronze hover:text-white flex items-center justify-center transition" :aria-label="content[lang].facebook"><i class="fa-brands fa-facebook-f"></i></a>
+                    <a :href="'https://wa.me/' + (siteData.whatsapp || '212600000000')" target="_blank" rel="noopener noreferrer" class="w-11 h-11 rounded-full bg-white/10 text-arch-gold hover:bg-arch-bronze hover:text-white flex items-center justify-center transition" :aria-label="content[lang].whatsapp"><i class="fa-brands fa-whatsapp"></i></a>
+                </div>
+            </div>
+            <form @submit.prevent="submitTestimonial()" class="border-t border-white/10 pt-7 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <h3 class="md:col-span-2 font-bold text-lg" x-text="content[lang].reviews.submitTitle"></h3>
+                <p class="md:col-span-2 text-xs text-white/60" x-text="content[lang].reviews.formNote"></p>
+                <input required maxlength="80" x-model.trim="testimonialForm.name" class="rounded-xl bg-white/10 border-white/20 text-white placeholder:text-white/50" :placeholder="content[lang].reviews.namePlaceholder">
+                <input required maxlength="80" x-model.trim="testimonialForm.location" class="rounded-xl bg-white/10 border-white/20 text-white placeholder:text-white/50" :placeholder="content[lang].reviews.locationPlaceholder">
+                <textarea required maxlength="600" x-model.trim="testimonialForm.comment" class="md:col-span-2 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-white/50" rows="3" :placeholder="content[lang].reviews.commentPlaceholder"></textarea>
+                <div class="md:col-span-2 flex flex-col sm:flex-row sm:items-center gap-4"><button type="submit" class="rounded-full bg-arch-bronze px-7 py-3 font-bold text-white hover:bg-white hover:text-arch-charcoal transition" x-text="content[lang].reviews.submit"></button><p x-show="testimonialNotice" class="text-sm text-arch-gold" x-text="content[lang].reviews.pendingNotice"></p></div>
+            </form>
+        </div>
+    </footer>
+
+    <a :href="'https://wa.me/' + (siteData.whatsapp || '212600000000')" target="_blank" rel="noopener noreferrer" class="fixed bottom-8 right-8 z-[200] w-14 h-14 bg-white text-arch-bronze rounded-full border-2 border-arch-bronze flex items-center justify-center text-2xl shadow-2xl hover:scale-110 transition" :aria-label="content[lang].whatsapp">
+        <i class="fa-brands fa-whatsapp"></i>
+    </a>
+
+    <script>
+        function bedAluApp() {
+            return {
+                lang: 'fr', activeTab: 'home', activeSlide: 0, activeReview: 0, activePartner: 0, reviewVisible: true, partnerVisible: true, langMenuOpen: false, projectModalOpen:false, activeProjectIndex:0, calc: { type: 'window', tier: 'economy', meters: 1 },
+                testimonialForm: { name:'', location:'', comment:'' }, testimonialNotice:false, approvedTestimonials:[],
+                languageOptions: [{id:'fr',label:'Français'},{id:'en',label:'English'},{id:'ar',label:'العربية'}],
+                tiers: [{id:'economy',factor:0.8},{id:'standard',factor:1},{id:'premium',factor:1.3}],
+                siteData: {},
+                tabs: [{id:'home'}, {id:'services'}, {id:'gallery'}, {id:'partners'}, {id:'calc'}, {id:'contact'}],
+                bentoItems: [
+                    {key:'s', icon:'fa-solid fa-wand-magic-sparkles', tab:'services'},
+                    {key:'p', icon:'fa-solid fa-gem', tab:'gallery'},
+                    {key:'partners', icon:'fa-solid fa-handshake', tab:'partners'},
+                    {key:'t', icon:'fa-solid fa-fingerprint', tab:'contact'}
+                ],
+                init() {
+                    const saved = localStorage.getItem('bedAlu_data');
+                    if (saved) this.siteData = this.repairSavedText(JSON.parse(saved));
+                    const products = this.getCalculatorProducts();
+                    if (!products.some(product => product.id === this.calc.type)) this.calc.type = products[0]?.id || 'window';
+                    this.approvedTestimonials = Array.isArray(this.siteData.approvedTestimonials) ? this.siteData.approvedTestimonials : [];
+                    window.addEventListener('storage', event => {
+                        if (event.key === 'bedAlu_data' && event.newValue) {
+                            this.siteData = this.repairSavedText(JSON.parse(event.newValue));
+                            this.approvedTestimonials = Array.isArray(this.siteData.approvedTestimonials) ? this.siteData.approvedTestimonials : [];
+                            this.activeReview = 0;
+                        }
+                    });
+                    setInterval(() => { this.activeSlide = (this.activeSlide + 1) % this.getSliderImages().length }, 7000);
+                    setInterval(() => this.advanceCarousel('review'), 6500);
+                    setInterval(() => { if (this.getPartners().length > 1) this.advanceCarousel('partner'); }, 6500);
+                },
+
+                repairSavedText(value) {
+                    if (typeof value === 'string') {
+                        if (!/[ØÙÃÂ]/.test(value)) return value;
+                        try { return decodeURIComponent(escape(value)); } catch (_) { return value; }
+                    }
+                    if (Array.isArray(value)) return value.map(item => this.repairSavedText(item));
+                    if (value && typeof value === 'object') {
+                        return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, this.repairSavedText(item)]));
+                    }
+                    return value;
+                },
+
+                setLanguage(language) { this.lang = language; this.activeReview = 0; this.langMenuOpen = false; document.documentElement.lang = language; document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr'; },
+                languageName() { return this.languageOptions.find(option => option.id === this.lang)?.label || 'Français'; },
+                advanceCarousel(type) {
+                    const isReview = type === 'review';
+                    const list = isReview ? this.getVisibleReviews() : this.getPartners();
+                    if (!list.length || (isReview ? !this.reviewVisible : !this.partnerVisible)) return;
+                    if (isReview) this.reviewVisible = false; else this.partnerVisible = false;
+                    setTimeout(() => {
+                        if (isReview) { this.activeReview = (this.activeReview + 1) % list.length; this.reviewVisible = true; }
+                        else { this.activePartner = (this.activePartner + 1) % list.length; this.partnerVisible = true; }
+                    }, 350);
+                },
+                getPartners() { return Array.isArray(this.siteData.partners) ? this.siteData.partners : []; },
+                getVisibleReviews() {
+                    return this.approvedTestimonials.map(item => ({
+                        name:{ ar:this.firstName(item.name), fr:this.firstName(item.name), en:this.firstName(item.name) },
+                        text:{ ar:item.comment, fr:item.comment, en:item.comment }, location:item.location || ''
+                    }));
+                },
+                firstName(name) {
+                    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+                    if (/^[\u0600-\u06FF]/.test(parts[0] || '') && ['عبد','فاطمة','نهى'].includes(parts[0]) && parts[1]) return parts.slice(0,2).join(' ');
+                    return parts[0] || '';
+                },
+                submitTestimonial() {
+                    const pending = JSON.parse(localStorage.getItem('bedAlu_pendingTestimonials') || '[]');
+                    pending.push({ id:`review-${Date.now()}-${Math.random().toString(36).slice(2,7)}`, name:this.firstName(this.testimonialForm.name), location:this.testimonialForm.location, comment:this.testimonialForm.comment, language:this.lang, createdAt:new Date().toISOString() });
+                    localStorage.setItem('bedAlu_pendingTestimonials', JSON.stringify(pending));
+                    this.testimonialForm = { name:'', location:'', comment:'' };
+                    this.testimonialNotice = true;
+                    setTimeout(() => this.testimonialNotice = false, 5000);
+                },
+                partnerWhatsappUrl(number) { return `https://wa.me/${String(number || '').replace(/\D/g, '')}`; },
+                getPartnerCardColor(partner) { return /^#[0-9a-f]{6}$/i.test(partner.cardColor || '') ? partner.cardColor : '#FAF9F6'; },
+                openProject(index) { this.activeProjectIndex = index; this.projectModalOpen = true; },
+                closeProject() { this.projectModalOpen = false; },
+                projectTitle(project, index) { return project[`title_${this.lang}`] || `${this.content[this.lang].gallery.project} ${index + 1}`; },
+                projectCaption(project) { return project[`caption_${this.lang}`] || this.content[this.lang].gallery.caption; },
+
+                // Data Getters (Defaults + LocalStorage)
+                getSliderImages() {
+                    return (this.siteData.slider && this.siteData.slider.length > 0) ? this.siteData.slider : [
+                        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=1200',
+                        'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=1200',
+                        'https://images.unsplash.com/photo-1613545325278-f24b0cae1224?q=80&w=1200'
+                    ];
+                },
+                getServices() {
+                    return (this.siteData.services && this.siteData.services.length > 0) ? this.siteData.services : [
+                        { t_ar: 'أنظمة الألمنيوم الفاخرة', t_fr: 'Systèmes Aluminium Luxe', t_en:'Premium aluminum systems', d_ar: 'نوافذ وأبواب بعزل صوتي وحراري ممتاز.', d_fr: 'Isolation acoustique et thermique premium.', d_en:'Windows and doors with excellent thermal and acoustic insulation.', icon: 'fa-solid fa-shield-halved', img: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=800' },
+                        { t_ar: 'مطابخ عصرية متكاملة', t_fr: 'Cuisines Modernes', t_en:'Modern kitchens', d_ar: 'مطابخ ألمنيوم مقاومة للرطوبة بتصاميم إيطالية.', d_fr: 'Design italien résistant à l\'humidité.', d_en:'Moisture-resistant aluminum kitchens with modern designs.', icon: 'fa-solid fa-kitchen-set', img: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=800' }
+                    ];
+                },
+                getProjects() {
+                    const savedProjects = Array.isArray(this.siteData.projects) ? this.siteData.projects.map((project, index) => typeof project === 'string' ? { id:`project-${index}`, image:project } : { ...project, id:project.id || `project-${index}` }).filter(project => project.image && project.image.trim()) : [];
+                    return savedProjects.length > 0 ? savedProjects : [
+                        {id:'sample-project-1',image:'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?q=80&w=800'},
+                        {id:'sample-project-2',image:'https://images.unsplash.com/photo-1484154218962-a197022b5858?q=80&w=800'},
+                        {id:'sample-project-3',image:'https://images.unsplash.com/photo-1523217582562-09d0def993a6?q=80&w=800'}
+                    ];
+                },
+                getCalculatorProducts() {
+                    return Array.isArray(this.siteData.calculatorProducts) && this.siteData.calculatorProducts.length
+                        ? this.siteData.calculatorProducts
+                        : [
+                            {id:'window',name_ar:'نوافذ ألمنيوم',name_fr:'Fenêtres aluminium',name_en:'Aluminum windows',price:Number(this.siteData.pricing?.window ?? 950)},
+                            {id:'kitchen',name_ar:'مطابخ عصرية',name_fr:'Cuisines modernes',name_en:'Modern kitchens',price:Number(this.siteData.pricing?.kitchen ?? 2400)},
+                            {id:'glass',name_ar:'زجاج معماري',name_fr:'Verre architectural',name_en:'Architectural glass',price:Number(this.siteData.pricing?.glass ?? 1300)}
+                        ];
+                },
+                calculatorProductName(product) { return product[`name_${this.lang}`] || product.name_fr || product.name_en || product.id; },
+                calculatorUnitRate() { const product=this.getCalculatorProducts().find(item=>item.id===this.calc.type); return Math.max(0, Number(product?.price) || 0); },
+                formatMoney(value) { return new Intl.NumberFormat(this.lang === 'ar' ? 'ar-MA' : (this.lang === 'fr' ? 'fr-FR' : 'en-US')).format(Math.round(Number(value) || 0)) + (this.lang === 'ar' ? ' درهم' : ' MAD'); },
+                getTeam() {
+                    return (this.siteData.team && this.siteData.team.length > 0) ? this.siteData.team : [
+                        { name: 'نزار زمزام', role: 'المدير العام', phone: '06 00 00 00 00' },
+                        { name: 'عبد الرحمان اليحياوي', role: 'مدير العمليات', phone: '06 00 00 00 00' }
+                    ];
+                },
+
+                calculateTotal() {
+                    const product = this.getCalculatorProducts().find(item => item.id === this.calc.type) || this.getCalculatorProducts()[0];
+                    const legacyBase = this.siteData.pricing?.[this.calc.type];
+                    const base = Number.isFinite(Number(product?.price)) ? Number(product.price) : (Number(legacyBase) || 0);
+                    const tier = this.tiers.find(item => item.id === this.calc.tier) || this.tiers[0];
+                    const factor = Number(this.siteData.tierFactors?.[tier.id]) || tier.factor;
+                    return this.formatMoney(base * factor) + ' / m²';
+                },
+                sendWA() {
+                    const product = this.calculatorProductName(this.getCalculatorProducts().find(item => item.id === this.calc.type) || this.getCalculatorProducts()[0]);
+                    const tier = this.content[this.lang].calc.tiers[this.calc.tier];
+                    const messages = {
+                        ar: `السلام عليكم، أريد عرض ثمن لـ ${product}، الفئة ${tier}. الثمن للمتر المربع: ${this.calculateTotal()}`,
+                        fr: `Bonjour, je souhaite un devis pour ${product}, gamme ${tier}. Prix au mètre carré : ${this.calculateTotal()}`,
+                        en: `Hello, I would like a quote for ${product}, ${tier} range. Price per square meter: ${this.calculateTotal()}`
+                    };
+                    const msg = encodeURIComponent(messages[this.lang]);
+                    window.open(`https://wa.me/${this.siteData.whatsapp || '212600000000'}?text=${msg}`, '_blank', 'noopener');
+                },
+
+                content: {
+                    ar: {
+                        tagline:'الجودة والإتقان في كل مشروع', language:'تغيير اللغة', footer:'إتقان في التنفيذ وجودة تدوم.', facebook:'صفحتنا على فيسبوك', whatsapp:'تواصل معنا عبر واتساب', version:'الإصدار',
+                        partners:{eyebrow:'شركاؤنا',title:'شركاء النجاح',desc:'شركاء نعتز بالتعاون معهم.',whatsapp:'تواصل مع الشريك عبر واتساب',viewAll:'عرض جميع الشركاء',empty:'أضف بيانات الشركاء من لوحة التحكم لعرضهم هنا.',namePlaceholder:'اسم الشريك'},
+                        reviews:{eyebrow:'كلمات من واقع التجربة',title:'تجاربكم تحكي عنّا',empty:'مازال ما وصلنا حتى تعليق معتمد. كون أول واحد يشارك تجربتو.',submitTitle:'شاركنا رأيك',formNote:'كنفضلوا التعليقات بالدارجة المغربية. غادي يبان تعليقك من بعد ما توافق عليه الإدارة.',namePlaceholder:'الاسم الأول',locationPlaceholder:'المدينة أو المكان',commentPlaceholder:'حكي لينا بالدارجة كيفاش كانت تجربتك معانا',submit:'إرسال للمراجعة',pendingNotice:'شكراً ليك، تعليقك كيتسنى موافقة الإدارة قبل ما يبان.'},
+                        nav: { home:'الرئيسية', services:'خدماتنا', gallery:'مشاريعنا', partners:'شركاؤنا', calc:'الحاسبة', contact:'الفريق', cta:'استشارة' },
+                        hero: { heading:'فن الألمنيوم', accent:'بمنظور عصري', desc:'جودة عالمية وبصمة مغربية أصلية في مدينة القنيطرة.', btn1:'حساب التكلفة' },
+                        bento: { 
+                            s: { t:'تصاميم مبتكرة', d:'أحدث صيحات الديكور المعماري.' },
+                            p: { t:'مشاريع فاخرة', d:'إنجازاتنا تتحدث عن جودتنا.' },
+                            t: { t:'فريق خبير', d:'نخبة من الحرفيين المهرة.' },
+                            partners:{t:'شركاؤنا',d:'شبكة من الشركاء الموثوقين.'}
+                        },
+                        services: { title:'هندسة المساحات الفاخرة', more:'اكتشفوا الخدمة' },
+                        gallery: { title:'مشاريع تنبض بالجمال', desc:'أناقة معاصرة وإتقان في تنفيذ مشاريع الألمنيوم والزجاج.', project:'مشروع', caption:'تفاصيل متقنة وجودة تدوم.', close:'إغلاق الصورة' },
+                        calc: { t:'احسب تكلفة مشروعك', area:'المساحة بالمتر المربع', tierLabel:'اختر الفئة المناسبة', unitRate:'الثمن الأساسي للمتر المربع', estimate:'الثمن التقديري للمتر المربع بعد اختيار الفئة', note:'الثمن تقريبي ويتغير حسب المواد والقياسات النهائية.', request:'اطلب عرض الثمن عبر واتساب', tiers:{economy:'اقتصادي',standard:'متوسط',premium:'ممتاز'}, products:{window:'نوافذ الألمنيوم',kitchen:'المطابخ',glass:'الزجاج المعماري'} },
+                        contact: { phone:'الهاتف', location:'الموقع', address:'القنيطرة، المغرب' },
+                        team: { t:'نخبة bedaluminium' }
+                    },
+                    fr: {
+                        tagline:'Qualité et savoir-faire à chaque étape', language:'Changer de langue', footer:'Savoir-faire précis et qualité durable.', facebook:'Notre page Facebook', whatsapp:'Contactez-nous sur WhatsApp', version:'Version',
+                        partners:{eyebrow:'NOS PARTENAIRES',title:'Partenaires de confiance',desc:'Des partenaires que nous sommes fiers de présenter.',whatsapp:'Contacter ce partenaire sur WhatsApp',viewAll:'Voir tous les partenaires',empty:'Ajoutez les partenaires depuis le panneau de contrôle pour les afficher ici.',namePlaceholder:'Nom du partenaire'},
+                        reviews:{eyebrow:'PAROLES DE NOS CLIENTS',title:'Vos expériences parlent de nous',empty:'Aucun avis validé pour le moment. Soyez le premier à partager votre expérience.',submitTitle:'Partagez votre avis',formNote:'Votre commentaire sera publié après validation par notre équipe.',namePlaceholder:'Prénom',locationPlaceholder:'Ville ou lieu',commentPlaceholder:'Racontez-nous votre expérience',submit:'Envoyer pour validation',pendingNotice:'Merci, votre avis attend la validation de l’équipe.'},
+                        nav: { home:'Accueil', services:'Services', gallery:'Projets', partners:'Partenaires', calc:'Calculateur', contact:'Équipe', cta:'Consultation' },
+                        hero: { heading:'L\'Art de l\'Aluminium', accent:'Modernisé', desc:'Qualité internationale et touche marocaine à Kenitra.', btn1:'Estimation' },
+                        bento: { 
+                            s: { t:'Design Innovant', d:'Tendances architecturales modernes.' },
+                            p: { t:'Projets Luxe', d:'Nos réalisations d\'excellence.' },
+                            t: { t:'Équipe Experte', d:'Élite d\'artisans qualifiés.' },
+                            partners:{t:'Partenaires',d:'Un réseau de partenaires de confiance.'}
+                        },
+                        services: { title:'Ingénierie de Luxe', more:'Découvrir le service' },
+                        gallery: { title:'Des projets remarquables', desc:'Élégance contemporaine et finitions soignées en aluminium et en verre.', project:'Projet', caption:'Finitions soignées et qualité durable.', close:'Fermer l’image' },
+                        calc: { t:'Estimez votre projet', area:'Surface en mètres carrés', tierLabel:'Choisissez une gamme', unitRate:'Prix de base au mètre carré', estimate:'Prix estimé au mètre carré après le choix de la gamme', note:'Le prix est indicatif et varie selon les matériaux et les mesures finales.', request:'Demander un devis sur WhatsApp', tiers:{economy:'Économique',standard:'Standard',premium:'Premium'}, products:{window:'Fenêtres en aluminium',kitchen:'Cuisines',glass:'Verre architectural'} },
+                        contact: { phone:'Téléphone', location:'Emplacement', address:'Kénitra, Maroc' },
+                        team: { t:'L\'Équipe bedaluminium' }
+                    },
+                    en: {
+                        tagline:'Quality and craftsmanship in every project', language:'Change language', footer:'Precise craftsmanship and lasting quality.', facebook:'Our Facebook page', whatsapp:'Contact us on WhatsApp', version:'Version',
+                        partners:{eyebrow:'OUR PARTNERS',title:'Trusted partners',desc:'Partners we are proud to work with.',whatsapp:'Contact this partner on WhatsApp',viewAll:'View all partners',empty:'Add partner details in the control panel to display them here.',namePlaceholder:'Partner name'},
+                        reviews:{eyebrow:'WORDS FROM OUR CUSTOMERS',title:'Your experiences speak for us',empty:'No approved reviews yet. Be the first to share your experience.',submitTitle:'Share your feedback',formNote:'Your comment will appear after it is reviewed and approved.',namePlaceholder:'First name',locationPlaceholder:'City or location',commentPlaceholder:'Tell us about your experience',submit:'Send for review',pendingNotice:'Thank you. Your comment is waiting for approval.'},
+                        nav:{home:'Home',services:'Services',gallery:'Projects',partners:'Partners',calc:'Calculator',contact:'Our team',cta:'Contact us'},
+                        hero:{heading:'The Art of Aluminum',accent:'Made Modern',desc:'International quality with an authentic Moroccan touch in Kenitra.',btn1:'Estimate your project'},
+                        bento:{s:{t:'Thoughtful design',d:'Modern architectural and interior design.'},p:{t:'Our projects',d:'Craftsmanship and quality in every detail.'},t:{t:'Expert team',d:'Skilled professionals ready to help.'},partners:{t:'Our partners',d:'A network of trusted partners.'}},
+                        services:{title:'Refined spaces, made to last',more:'Explore this service',fallbackTitle:'Aluminum and glass service',fallbackDescription:'Contact us to learn more about this service.'},
+                        gallery:{title:'Projects made to inspire',desc:'Contemporary elegance and careful craftsmanship in aluminum and glass.',project:'Project',caption:'Careful details and lasting quality.',close:'Close image'},
+                        calc:{t:'Estimate your project',area:'Area in square meters',tierLabel:'Choose a quality level',unitRate:'Base price per square meter',estimate:'Estimated price per square meter after level selection',note:'The price is an estimate and varies according to materials and final measurements.',request:'Request a quote on WhatsApp',tiers:{economy:'Economy',standard:'Standard',premium:'Premium'},products:{window:'Aluminum windows',kitchen:'Kitchens',glass:'Architectural glass'}},
+                        contact:{phone:'Phone',location:'Location',address:'Kenitra, Morocco'},team:{t:'The bedaluminium team'}
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

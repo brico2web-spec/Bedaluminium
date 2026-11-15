@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" x-data="adminPanel()">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم | bedaluminium CMS</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        admin: {
+                            dark: '#0f172a',
+                            accent: '#B45309',
+                            surface: '#1e293b'
+                        }
+                    },
+                    fontFamily: { sans: ['Cairo', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        .sidebar-link.active { background: #B45309; color: white; border-radius: 12px; }
+        .card { background: white; border-radius: 20px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        input, select, textarea { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; outline: none; transition: all 0.3s; }
+        input:focus { border-color: #B45309; ring: 2px; ring-color: #B45309; }
+        @media (max-width: 900px) { aside { position: relative !important; width: 100% !important; height: auto !important; } main { margin-right: 0 !important; padding: 1rem !important; } .admin-layout { display:block !important; } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+    <!-- Client-side access screen; production authentication should be enforced by a server. -->
+    <div x-show="!authenticated" x-cloak class="fixed inset-0 z-[500] flex items-center justify-center bg-slate-950 p-5">
+        <form @submit.prevent="login()" class="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
+            <div class="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-admin-dark text-2xl font-bold text-white">B</div>
+            <h1 class="mb-2 text-center text-2xl font-bold">تسجيل الدخول للوحة التحكم</h1>
+            <p class="mb-7 text-center text-sm text-slate-500">أدخل بيانات الدخول للمتابعة</p>
+            <label class="mb-2 block text-sm font-bold" for="admin-username">اسم المستخدم</label>
+            <input id="admin-username" type="text" x-model.trim="loginForm.username" autocomplete="username" dir="ltr" required class="mb-5 w-full">
+            <label class="mb-2 block text-sm font-bold" for="admin-password">كلمة المرور</label>
+            <input id="admin-password" type="password" x-model="loginForm.password" autocomplete="current-password" dir="ltr" required class="mb-5 w-full">
+            <p x-show="loginError" x-text="loginError" class="mb-4 text-sm font-bold text-red-600"></p>
+            <button type="submit" class="w-full rounded-xl bg-admin-accent px-5 py-3 font-bold text-white transition hover:opacity-90">دخول</button>
+        </form>
+    </div>
+
+    <div x-show="authenticated" x-cloak class="admin-layout flex min-h-screen">
+        <!-- SIDEBAR -->
+        <aside class="w-72 bg-admin-dark text-white p-6 flex flex-col fixed h-full z-50">
+            <div class="flex items-center gap-3 mb-10 px-2">
+                <div class="w-10 h-10 bg-admin-accent flex items-center justify-center rounded-lg overflow-hidden">
+                    <img x-show="siteData.logo" :src="siteData.logo" class="w-full h-full object-cover"><span x-show="!siteData.logo" class="font-bold text-xl">B</span>
+                </div>
+                <h1 class="text-lg font-bold tracking-tighter">لوحة التحكم</h1>
+            </div>
+
+            <nav class="flex-1 space-y-2">
+                <template x-for="menu in menus">
+                    <button @click="activeMenu = menu.id" 
+                            class="sidebar-link w-full flex items-center gap-4 px-4 py-3 text-slate-400 hover:text-white transition-all text-sm font-semibold"
+                            :class="activeMenu === menu.id ? 'active text-white' : ''">
+                        <i :class="menu.icon"></i>
+                        <span x-text="menu.name"></span>
+                    </button>
+                </template>
+            </nav>
+
+            <div class="pt-6 border-t border-slate-700">
+                <a href="index.html" target="_blank" class="flex items-center gap-4 px-4 py-3 text-slate-400 hover:text-white transition text-sm">
+                    <i class="fa-solid fa-eye"></i>
+                    <span>عرض الموقع</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 mr-72 p-6">
+            <!-- Header -->
+            <header class="flex justify-between items-center mb-8 bg-white p-5 rounded-2xl shadow-sm">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800" x-text="getCurrentMenuName()"></h2>
+                    <p class="text-sm text-slate-400 mt-1">تعديل وتحديث محتوى القسم المختار</p>
+                </div>
+                <button @click="saveAll()" class="bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 transition flex items-center gap-2">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    <span>حفظ جميع التغييرات</span>
+                </button>
+            </header>
+
+            <!-- SECTION: IDENTITY & LOGO -->
+            <section x-show="activeMenu === 'identity'" class="space-y-8 animate-fade-in">
+                <div class="card p-6">
+                    <h3 class="text-lg font-bold mb-6 flex items-center gap-2 text-admin-accent border-b pb-4">
+                        <i class="fa-solid fa-fingerprint"></i> الهوية وبيانات التواصل
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="space-y-4">
+                            <label class="block text-sm font-bold">شعار الموقع (Logo)</label>
+                            <div class="flex items-center gap-6 p-4 border-2 border-dashed rounded-2xl">
+                                <div class="w-20 h-20 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                    <img :src="siteData.logo" x-show="siteData.logo" class="w-full h-full object-contain">
+                                    <i x-show="!siteData.logo" class="fa-solid fa-image text-slate-300 text-2xl"></i>
+                                </div>
+                                <input type="file" @change="handleLogoUpload" class="text-xs">
+                                <input type="url" x-model="siteData.logo" class="w-full text-xs" dir="ltr" placeholder="ضع رابط الشعار هنا (https://...)">
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <label class="block text-sm font-bold">اسم الشركة الرئيسي</label>
+                            <input type="text" x-model="siteData.name" class="w-full">
+                        </div>
+                        <div class="space-y-4"><label class="block text-sm font-bold">إصدار الموقع</label><input type="text" x-model="siteData.version" class="w-full" placeholder="1.0.0" dir="ltr"></div>
+                        <div class="space-y-4"><label class="block text-sm font-bold">رقم الهاتف</label><input type="tel" x-model="siteData.phone" class="w-full" dir="ltr"></div>
+                        <div class="space-y-4"><label class="block text-sm font-bold">عنوان الشركة</label><input type="text" x-model="siteData.address" class="w-full"></div>
+                        <div class="space-y-4"><label class="block text-sm font-bold">العنوان بالعربية</label><input type="text" x-model="siteData.address_ar" class="w-full"></div>
+                        <div class="space-y-4"><label class="block text-sm font-bold">العنوان بالفرنسية</label><input type="text" x-model="siteData.address_fr" class="w-full"></div>
+                        <div class="space-y-4"><label class="block text-sm font-bold">العنوان بالإنجليزية</label><input type="text" x-model="siteData.address_en" class="w-full"></div>
+                        <div class="space-y-4"><label class="block text-sm font-bold">رقم واتساب مع مفتاح الدولة</label><input type="tel" x-model="siteData.whatsapp" class="w-full" dir="ltr" placeholder="212600000000"></div>
+                        <div class="space-y-4"><label class="block text-sm font-bold">رابط صفحة فيسبوك</label><input type="url" x-model="siteData.facebook" class="w-full" dir="ltr" placeholder="https://facebook.com/your-page"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: SITE COPY -->
+            <section x-show="activeMenu === 'content'" class="space-y-8" x-cloak>
+                <div class="card p-6 space-y-6">
+                    <h3 class="text-lg font-bold flex items-center gap-2 text-admin-accent border-b pb-4"><i class="fa-solid fa-pen-to-square"></i> نصوص الواجهة الرئيسية</h3>
+                    <template x-for="locale in [{id:'ar',label:'العربية'},{id:'fr',label:'الفرنسية'},{id:'en',label:'الإنجليزية'}]" :key="locale.id">
+                        <div class="rounded-2xl border p-6 space-y-4">
+                            <h4 class="font-bold" x-text="locale.label"></h4>
+                            <input type="text" x-model="siteData.hero['title_' + locale.id]" class="w-full" placeholder="العنوان الرئيسي">
+                            <input type="text" x-model="siteData.hero['accent_' + locale.id]" class="w-full" placeholder="العنوان المميز">
+                            <textarea x-model="siteData.hero['desc_' + locale.id]" class="w-full h-24" placeholder="وصف الواجهة"></textarea>
+                            <input type="text" x-model="siteData.hero['btn_' + locale.id]" class="w-full" placeholder="نص الزر">
+                            <div class="grid md:grid-cols-2 gap-4"><input type="text" x-model="siteData.sectionTitles['services_' + locale.id]" placeholder="عنوان الخدمات"><input type="text" x-model="siteData.sectionTitles['gallery_' + locale.id]" placeholder="عنوان المشاريع"><input type="text" x-model="siteData.sectionTitles['calc_' + locale.id]" placeholder="عنوان الحاسبة"><input type="text" x-model="siteData.sectionTitles['team_' + locale.id]" placeholder="عنوان الفريق"></div>
+                            <textarea x-model="siteData.galleryText['desc_' + locale.id]" class="w-full h-20" placeholder="العبارة التعريفية لمعرض المشاريع"></textarea>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            <!-- SECTION: HERO SLIDER -->
+            <section x-show="activeMenu === 'slider'" class="space-y-8" x-cloak>
+                <div class="card p-6">
+                    <h3 class="text-lg font-bold mb-6 flex items-center gap-2 text-admin-accent border-b pb-4">
+                        <i class="fa-solid fa-images"></i> صور الواجهة
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <template x-for="(img, index) in siteData.slider">
+                            <div class="relative h-56 rounded-xl overflow-hidden shadow-md bg-slate-100 p-2">
+                                <img :src="img" class="w-full h-32 rounded-lg object-cover">
+                                <input type="url" x-model="siteData.slider[index]" placeholder="رابط الصورة" class="w-full mt-2 text-xs" dir="ltr">
+                                <button @click="removeSlider(index)" class="absolute top-3 left-3 bg-red-500 text-white w-8 h-8 rounded-full"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                        </template>
+                        <button @click="addSlider()" class="min-h-56 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:border-admin-accent hover:text-admin-accent"><i class="fa-solid fa-plus text-2xl mb-2"></i><span class="text-xs font-bold">إضافة صورة للواجهة</span></button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: SERVICES -->
+            <section x-show="activeMenu === 'services'" class="space-y-8" x-cloak>
+                <div class="card p-6">
+                    <h3 class="text-lg font-bold mb-6 flex items-center gap-2 text-admin-accent border-b pb-4">
+                        <i class="fa-solid fa-gears"></i> تعديل الخدمات التفصيلية
+                    </h3>
+                    <div class="space-y-8">
+                        <template x-for="(service, idx) in siteData.services">
+                            <div class="p-6 bg-slate-50 rounded-[2rem] border border-slate-200 space-y-6">
+                                <div class="flex justify-between items-center">
+                                    <span class="bg-admin-dark text-white px-4 py-1 rounded-full text-xs" x-text="'الخدمة ' + (idx + 1)"></span>
+                                    <input type="text" x-model="service.icon" class="text-xs w-48" placeholder="أيقونة (FontAwesome class)">
+                                    <button @click="removeService(idx)" class="text-red-600 px-3 py-2 rounded-lg hover:bg-red-50"><i class="fa-solid fa-trash-can"></i> حذف الخدمة</button>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="space-y-4">
+                                        <input type="text" x-model="service.t_ar" placeholder="العنوان (بالعربية)" class="w-full font-bold">
+                                        <input type="text" x-model="service.t_fr" placeholder="العنوان (بالفرنسية)" class="w-full">
+                                        <input type="text" x-model="service.t_en" placeholder="العنوان (بالإنجليزية)" class="w-full">
+                                        <textarea x-model="service.d_ar" placeholder="الوصف (بالعربية)" class="w-full h-24 text-sm"></textarea>
+                                        <textarea x-model="service.d_fr" placeholder="الوصف (بالفرنسية)" class="w-full h-24 text-sm"></textarea>
+                                        <textarea x-model="service.d_en" placeholder="الوصف (بالإنجليزية)" class="w-full h-24 text-sm"></textarea>
+                                    </div>
+                                    <div class="space-y-4">
+                                        <label class="block text-xs font-bold uppercase text-slate-400 tracking-widest">صورة الخدمة</label>
+                                        <div class="h-48 rounded-2xl overflow-hidden">
+                                            <img :src="service.img" class="w-full h-full object-cover">
+                                        </div>
+                                        <input type="text" x-model="service.img" placeholder="رابط صورة الخدمة" class="w-full text-xs">
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    <button @click="addService()" class="mt-8 px-6 py-3 bg-admin-accent text-white rounded-xl font-bold"><i class="fa-solid fa-plus ml-2"></i>إضافة خدمة</button>
+                </div>
+            </section>
+
+            <!-- SECTION: PROJECTS -->
+            <section x-show="activeMenu === 'projects'" class="space-y-8" x-cloak>
+                <div class="card p-6">
+                    <h3 class="text-lg font-bold mb-6 flex items-center gap-2 text-admin-accent border-b pb-4">
+                        <i class="fa-solid fa-diagram-project"></i> معرض المشاريع
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                        <template x-for="(project, pIdx) in siteData.projects" :key="project.id || pIdx">
+                            <div class="group rounded-xl overflow-hidden bg-slate-50 border p-3">
+                                <div class="h-44 rounded-lg overflow-hidden bg-slate-200 flex items-center justify-center"><img x-show="project.image" :src="project.image" class="w-full h-full object-cover"><i x-show="!project.image" class="fa-solid fa-image text-slate-400 text-3xl"></i></div>
+                                <input type="url" x-model="project.image" class="w-full mt-3 text-xs" placeholder="رابط صورة المشروع" dir="ltr">
+                                <div class="grid grid-cols-1 gap-2 mt-3"><input type="text" x-model="project.title_ar" placeholder="عنوان المشروع بالعربية"><input type="text" x-model="project.title_fr" placeholder="Titre du projet en français"><input type="text" x-model="project.title_en" placeholder="Project title in English"><textarea x-model="project.caption_ar" rows="2" placeholder="عبارة المشروع بالعربية"></textarea><textarea x-model="project.caption_fr" rows="2" placeholder="Légende du projet en français"></textarea><textarea x-model="project.caption_en" rows="2" placeholder="Project caption in English"></textarea></div>
+                                <button @click="removeProject(pIdx)" class="mt-3 text-red-600 text-sm font-bold"><i class="fa-solid fa-trash-can ml-1"></i>حذف المشروع</button>
+                            </div>
+                        </template>
+                        <button @click="addProject()" class="min-h-56 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:border-admin-accent hover:text-admin-accent transition">
+                            <i class="fa-solid fa-plus text-2xl mb-2"></i>
+                            <span class="text-xs font-bold uppercase">إضافة مشروع ثم وضع رابطه</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: TEAM -->
+            <section x-show="activeMenu === 'team'" class="space-y-8" x-cloak>
+                <div class="card p-6">
+                    <h3 class="text-lg font-bold mb-6 flex items-center gap-2 text-admin-accent border-b pb-4">
+                        <i class="fa-solid fa-user-tie"></i> إدارة فريق العمل
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <template x-for="(person, idx) in siteData.team" :key="idx">
+                            <div class="p-8 border rounded-[2.5rem] bg-slate-50 space-y-6">
+                                <div class="flex items-center gap-6">
+                                    <div class="w-20 h-20 bg-admin-dark rounded-full flex items-center justify-center text-white text-3xl">
+                                        <i class="fa-solid fa-user"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <input type="text" x-model="person.name" class="w-full font-bold text-lg mb-2" placeholder="الاسم">
+                                        <input type="text" x-model="person.role" class="w-full text-xs text-admin-accent" placeholder="المهمة بالعربية">
+                                        <input type="text" x-model="person.role_fr" class="w-full text-xs" placeholder="المهمة بالفرنسية">
+                                        <input type="text" x-model="person.role_en" class="w-full text-xs" placeholder="المهمة بالإنجليزية">
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="block text-xs font-bold text-slate-400">رقم الهاتف</label>
+                                    <input type="text" x-model="person.phone" class="w-full font-mono">
+                                </div>
+                                <button @click="removeTeamMember(idx)" class="text-red-600 text-sm font-bold"><i class="fa-solid fa-trash-can ml-2"></i>حذف العضو</button>
+                            </div>
+                        </template>
+                    </div>
+                    <button @click="addTeamMember()" class="mt-8 px-6 py-3 bg-admin-accent text-white rounded-xl font-bold"><i class="fa-solid fa-plus ml-2"></i>إضافة عضو</button>
+                </div>
+            </section>
+
+            <!-- SECTION: PARTNERS -->
+            <section x-show="activeMenu === 'partners'" class="space-y-8" x-cloak>
+                <div class="card p-6">
+                    <h3 class="text-lg font-bold mb-3 flex items-center gap-2 text-admin-accent border-b pb-4"><i class="fa-solid fa-handshake"></i> إدارة الشركاء</h3>
+                    <p class="text-sm text-slate-500 mb-6">أضف بيانات الشريك ورقم واتساب مع مفتاح الدولة، مثلاً 2126XXXXXXXX.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <template x-for="(partner, idx) in siteData.partners" :key="partner.id">
+                            <article class="rounded-2xl border bg-slate-50 p-6 space-y-4">
+                                <div class="flex items-center justify-between"><h4 class="font-bold text-admin-accent" x-text="'الشريك ' + (idx + 1)"></h4><button @click="removePartner(idx)" class="text-red-600 px-3 py-2 rounded-lg hover:bg-red-100"><i class="fa-solid fa-trash-can ml-1"></i>حذف</button></div>
+                                <input type="text" x-model="partner.name" class="w-full" placeholder="اسم الشريك">
+                                <input type="text" x-model="partner.field" class="w-full" placeholder="مجال العمل">
+                                <input type="text" x-model="partner.address" class="w-full" placeholder="العنوان">
+                                <input type="tel" x-model="partner.phone" class="w-full" dir="ltr" placeholder="رقم الهاتف">
+                                <input type="tel" x-model="partner.whatsapp" class="w-full" dir="ltr" placeholder="واتساب مع مفتاح الدولة">
+                                <div class="pt-2"><p class="text-sm font-bold mb-3">لون خلفية بطاقة الشريك</p><div class="flex flex-wrap items-center gap-3"><template x-for="color in siteData.partnerCardColors" :key="color.hex"><button type="button" @click="partner.cardColor = color.hex" class="w-9 h-9 rounded-full border-2 transition" :style="'background-color:' + color.hex" :class="(partner.cardColor || '#FAF9F6') === color.hex ? 'border-admin-dark ring-2 ring-admin-accent ring-offset-2' : 'border-white shadow'" :title="color.name" :aria-label="color.name"></button></template><input type="color" :value="partner.cardColor || '#FAF9F6'" @input="partner.cardColor = $event.target.value" class="w-10 h-10 p-1 rounded-full cursor-pointer" title="اختيار لون مخصص"></div></div>
+                            </article>
+                        </template>
+                    </div>
+                    <button @click="addPartner()" class="mt-6 px-6 py-3 bg-admin-accent text-white rounded-xl font-bold"><i class="fa-solid fa-plus ml-2"></i>إضافة شريك</button>
+                    <p x-show="!siteData.partners.length" class="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">مازال ما تزاد حتى شريك. أضف البيانات الحقيقية باش يبان القسم للزوار.</p>
+                </div>
+            </section>
+
+            <!-- SECTION: TESTIMONIAL MODERATION -->
+            <section x-show="activeMenu === 'testimonials'" class="space-y-6" x-cloak>
+                <div class="card p-6">
+                    <h3 class="text-lg font-bold mb-3 flex items-center gap-2 text-admin-accent border-b pb-4"><i class="fa-solid fa-comments"></i> مراجعة تعليقات الزوار</h3>
+                    <p class="text-sm text-slate-500 mb-6">التعليقات الجديدة ما كتبانش فالموقع حتى توافق عليها. التعليق المرفوض كيتحذف من لائحة الانتظار وما كينشرش.</p>
+                    <div class="space-y-4">
+                        <template x-for="(review, idx) in pendingTestimonials" :key="review.id">
+                            <article class="rounded-2xl border bg-slate-50 p-6">
+                                <div class="flex flex-wrap justify-between gap-3"><div><h4 class="font-bold text-lg" x-text="review.name"></h4><p class="text-sm text-slate-500" x-text="review.location"></p></div><span class="text-xs text-slate-400" x-text="new Date(review.createdAt).toLocaleString('ar-MA')"></span></div>
+                                <p class="my-5 leading-relaxed" x-text="review.comment" :dir="review.language === 'ar' ? 'rtl' : 'auto'"></p>
+                                <div class="flex gap-3"><button @click="approveTestimonial(idx)" class="px-5 py-2 rounded-lg bg-green-600 text-white font-bold hover:bg-green-700"><i class="fa-solid fa-check ml-2"></i>موافقة ونشر</button><button @click="rejectTestimonial(idx)" class="px-5 py-2 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700"><i class="fa-solid fa-xmark ml-2"></i>رفض وحذف</button></div>
+                            </article>
+                        </template>
+                    </div>
+                    <p x-show="!pendingTestimonials.length" class="rounded-xl bg-slate-50 p-6 text-slate-500">ما كاين حتى تعليق كيتسنى المراجعة.</p>
+                </div>
+            </section>
+
+            <!-- SECTION: SETTINGS -->
+            <section x-show="activeMenu === 'settings'" class="space-y-8" x-cloak>
+                <div class="card p-6">
+                    <h3 class="text-lg font-bold mb-6 flex items-center gap-2 text-admin-accent border-b pb-4">
+                        <i class="fa-solid fa-sliders"></i> إعدادات تقنية إضافية
+                    </h3>
+                    <div class="max-w-md space-y-6">
+                        <div class="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
+                            <div>
+                                <h4 class="font-bold text-sm">تفعيل الحاسبة</h4>
+                                <p class="text-xs text-slate-400">إظهار أو إخفاء حاسبة التكلفة من الموقع</p>
+                            </div>
+                            <button @click="siteData.features.calc = !siteData.features.calc" 
+                                    :class="siteData.features.calc ? 'bg-green-500' : 'bg-slate-300'"
+                                    class="w-12 h-6 rounded-full relative transition-colors">
+                                <div class="absolute top-1 w-4 h-4 bg-white rounded-full transition-all" :class="siteData.features.calc ? 'left-7' : 'left-1'"></div>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-10 max-w-3xl space-y-5 border-t pt-8">
+                        <h4 class="font-bold">خدمات الحاسبة وثمن المتر المربع</h4>
+                        <p class="text-xs text-slate-500">تقدر تزيد أو تحذف نوع الخدمة وتحدد الاسم بكل لغة والثمن الأساسي للمتر المربع. الحاسبة تطبق معامل الفئة على هذا الثمن.</p>
+                        <div class="space-y-4"><template x-for="(product, idx) in siteData.calculatorProducts" :key="product.id"><article class="rounded-xl border bg-slate-50 p-4 space-y-3"><div class="flex justify-between items-center"><span class="text-xs text-slate-500" x-text="'الخدمة ' + (idx + 1)"></span><button @click="removeCalculatorProduct(idx)" class="text-red-600 text-sm font-bold"><i class="fa-solid fa-trash-can ml-1"></i>حذف</button></div><div class="grid md:grid-cols-3 gap-3"><input type="text" x-model="product.name_ar" placeholder="الاسم بالعربية"><input type="text" x-model="product.name_fr" placeholder="Nom en français"><input type="text" x-model="product.name_en" placeholder="Name in English"></div><label class="block text-sm font-bold">الثمن الأساسي للمتر المربع (درهم)<input type="number" min="0" step="0.01" x-model.number="product.price" class="w-full mt-2"></label></article></template></div>
+                        <button @click="addCalculatorProduct()" class="px-5 py-2 rounded-lg bg-admin-accent text-white font-bold"><i class="fa-solid fa-plus ml-2"></i>إضافة نوع حاسبة</button>
+                        <div class="grid md:grid-cols-3 gap-4"><label class="text-sm">معامل الاقتصادي<input type="number" min="0" step="0.05" x-model.number="siteData.tierFactors.economy" class="w-full mt-2"></label><label class="text-sm">معامل المتوسط<input type="number" min="0" step="0.05" x-model.number="siteData.tierFactors.standard" class="w-full mt-2"></label><label class="text-sm">معامل الممتاز<input type="number" min="0" step="0.05" x-model.number="siteData.tierFactors.premium" class="w-full mt-2"></label></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- NOTIFICATION -->
+    <div x-show="showNotify" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-10"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         class="fixed bottom-10 left-10 z-[100] bg-admin-dark text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4">
+        <i class="fa-solid fa-circle-check text-green-500"></i>
+        <span class="text-sm font-bold">تم حفظ جميع التغييرات بنجاح!</span>
+    </div>
+
+    <script>
+        function adminPanel() {
+            return {
+                activeMenu: 'identity',
+                showNotify: false,
+                authenticated: false,
+                loginForm: { username: '', password: '' },
+                loginError: '',
+                login() {
+                    if (this.loginForm.username === 'Zamzam' && this.loginForm.password === '1463414634') {
+                        this.authenticated = true;
+                        this.loginError = '';
+                        this.loginForm.password = '';
+                    } else {
+                        this.loginError = 'اسم المستخدم أو كلمة المرور غير صحيحة.';
+                    }
+                },
+                menus: [
+                    { id: 'identity', name: 'الهوية والشعار', icon: 'fa-solid fa-id-card' },
+                    { id: 'content', name: 'نصوص الموقع', icon: 'fa-solid fa-pen-to-square' },
+                    { id: 'slider', name: 'صور الواجهة', icon: 'fa-solid fa-images' },
+                    { id: 'services', name: 'إدارة الخدمات', icon: 'fa-solid fa-briefcase' },
+                    { id: 'projects', name: 'معرض المشاريع', icon: 'fa-solid fa-grid-horizontal' },
+                    { id: 'team', name: 'إدارة الفريق', icon: 'fa-solid fa-users-gear' },
+                    { id: 'partners', name: 'إدارة الشركاء', icon: 'fa-solid fa-handshake' },
+                    { id: 'testimonials', name: 'مراجعة التعليقات', icon: 'fa-solid fa-comments' },
+                    { id: 'settings', name: 'إعدادات عامة', icon: 'fa-solid fa-gears' }
+                ],
+                
+                // DATA STRUCTURE
+                siteData: {
+                    name: 'bedaluminium', version:'1.0.0', partners:[], approvedTestimonials:[],
+                    partnerCardColors: [
+                        {hex:'#FAF9F6',name:'عاجي'},{hex:'#FFF7ED',name:'كريمي'},{hex:'#EFF6FF',name:'أزرق فاتح'},
+                        {hex:'#ECFDF5',name:'أخضر نعناعي'},{hex:'#FDF2F8',name:'وردي فاتح'},{hex:'#F5F3FF',name:'بنفسجي فاتح'},
+                        {hex:'#F7FEE7',name:'أخضر ليموني فاتح'},{hex:'#F1F5F9',name:'رمادي فاتح'},{hex:'#FEFCE8',name:'أصفر فاتح'}
+                    ],
+                    logo: '',
+                    phone: '06 00 00 00 00', address: 'القنيطرة، المغرب', address_ar:'القنيطرة، المغرب', address_fr:'Kénitra, Maroc', address_en:'Kenitra, Morocco', whatsapp: '212600000000', facebook:'https://www.facebook.com/',
+                    hero: {
+                        title_ar: 'فن الألمنيوم', accent_ar: 'بمنظور عصري', desc_ar: 'جودة عالمية وبصمة مغربية أصلية في مدينة القنيطرة.', btn_ar: 'حساب التكلفة',
+                        title_fr: 'L’Art de l’Aluminium', accent_fr: 'Modernisé', desc_fr: 'Qualité internationale et touche marocaine à Kénitra.', btn_fr: 'Estimation',
+                        title_en:'The Art of Aluminum',accent_en:'Made Modern',desc_en:'International quality with an authentic Moroccan touch in Kenitra.',btn_en:'Estimate your project'
+                    },
+                    sectionTitles: { services_ar:'هندسة المساحات الفاخرة', services_fr:'Ingénierie de Luxe', services_en:'Refined spaces, made to last', gallery_ar:'مشاريع تنبض بالجمال', gallery_fr:'Des projets remarquables', gallery_en:'Projects made to inspire', calc_ar:'احسب تكلفة مشروعك', calc_fr:'Estimez votre projet', calc_en:'Estimate your project', team_ar:'نخبة bedaluminium', team_fr:'L’Équipe bedaluminium', team_en:'The bedaluminium team' },
+                    galleryText: { desc_ar:'أناقة معاصرة وإتقان في تنفيذ مشاريع الألمنيوم والزجاج.', desc_fr:'Élégance contemporaine et finitions soignées en aluminium et en verre.', desc_en:'Contemporary elegance and careful craftsmanship in aluminum and glass.' },
+                    slider: [
+                        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2000',
+                        'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=2000',
+                        'https://images.unsplash.com/photo-1613545325278-f24b0cae1224?q=80&w=2000',
+                        'https://images.unsplash.com/photo-1505691938895-1758d7eaa511?q=80&w=2000',
+                        'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2000'
+                    ],
+                    services: [
+                        { 
+                            t_ar: 'أنظمة الألمنيوم: إطارات للحياة', t_fr: 'Systèmes Aluminium : Cadres pour la Vie',t_en:'Aluminum systems: frames for living',
+                            d_ar: 'نوافذ وأبواب ألمنيوم تجمع بين العزل الصوتي الفائق والجمالية العصرية.', d_fr: 'Isolation acoustique supérieure et esthétique moderne.',d_en:'Aluminum windows and doors with excellent sound insulation and a modern look.',
+                            icon: 'fa-solid fa-shield-halved', img: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=800'
+                        },
+                        { 
+                            t_ar: 'المطابخ العصرية: قلب المنزل', t_fr: 'Cuisines Modernes : Le Cœur de la Maison',t_en:'Modern kitchens: the heart of the home',
+                            d_ar: 'صممنا مطابخ ألمنيوم تجمع بين صلابة المعادن ودفء التصميم.', d_fr: 'Robustesse métallique et élégance du design.',d_en:'Aluminum kitchens combining durable materials and elegant design.',
+                            icon: 'fa-solid fa-kitchen-set', img: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=800'
+                        }
+                    ],
+                    projects: [
+                        {id:'project-1',image:'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?q=80&w=800',title_ar:'',title_fr:'',title_en:'',caption_ar:'',caption_fr:'',caption_en:''},
+                        {id:'project-2',image:'https://images.unsplash.com/photo-1484154218962-a197022b5858?q=80&w=800',title_ar:'',title_fr:'',title_en:'',caption_ar:'',caption_fr:'',caption_en:''},
+                        {id:'project-3',image:'https://images.unsplash.com/photo-1523217582562-09d0def993a6?q=80&w=800',title_ar:'',title_fr:'',title_en:'',caption_ar:'',caption_fr:'',caption_en:''}
+                    ],
+                    calculatorProducts: [
+                        {id:'window',name_ar:'نوافذ ألمنيوم',name_fr:'Fenêtres aluminium',name_en:'Aluminum windows',price:950},
+                        {id:'kitchen',name_ar:'مطابخ عصرية',name_fr:'Cuisines modernes',name_en:'Modern kitchens',price:2400},
+                        {id:'glass',name_ar:'زجاج معماري',name_fr:'Verre architectural',name_en:'Architectural glass',price:1300}
+                    ],
+                    team: [
+                        { name: 'نزار زمزام', role: 'المدير العام', role_fr:'Directeur général', role_en:'General manager', phone: '06 00 00 00 00' },
+                        { name: 'عبد الرحمان اليحياوي', role: 'مدير العمليات', role_fr:'Directeur des opérations', role_en:'Operations manager', phone: '06 00 00 00 00' }
+                    ],
+                    pricing: { window: 950, kitchen: 2400, glass: 1300 },
+                    tierFactors: { economy: 0.8, standard: 1, premium: 1.3 },
+                    features: { calc: true }
+                },
+
+                getCurrentMenuName() {
+                    return this.menus.find(m => m.id === this.activeMenu).name;
+                },
+
+                handleLogoUpload(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => this.siteData.logo = e.target.result;
+                        reader.readAsDataURL(file);
+                    }
+                },
+
+                addProject() { this.siteData.projects.push({id:`project-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,image:'',title_ar:'',title_fr:'',title_en:'',caption_ar:'',caption_fr:'',caption_en:''}); },
+
+                addSlider() { this.siteData.slider.push('https://'); },
+                removeSlider(index) { this.siteData.slider.splice(index, 1); },
+                addService() {
+                    this.siteData.services.push({ t_ar:'خدمة جديدة', t_fr:'Nouveau service', t_en:'New service', d_ar:'', d_fr:'', d_en:'', icon:'fa-solid fa-screwdriver-wrench', img:'' });
+                },
+                removeService(index) { this.siteData.services.splice(index, 1); },
+                addTeamMember() { this.siteData.team.push({ name:'', role:'', role_fr:'', phone:'' }); },
+                removeTeamMember(index) { this.siteData.team.splice(index, 1); },
+                addPartner() { this.siteData.partners.push({ id: `partner-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name:'', field:'', address:'', phone:'', whatsapp:'', cardColor:'#FAF9F6' }); },
+                removePartner(index) { this.siteData.partners.splice(index, 1); },
+                addCalculatorProduct() { const id=`product-${Date.now()}-${Math.random().toString(36).slice(2,6)}`; this.siteData.calculatorProducts.push({id,name_ar:'خدمة جديدة',name_fr:'Nouveau service',name_en:'New service',price:0}); },
+                removeCalculatorProduct(index) { if (this.siteData.calculatorProducts.length > 1) this.siteData.calculatorProducts.splice(index, 1); },
+                pendingTestimonials: [],
+                savePendingTestimonials() { localStorage.setItem('bedAlu_pendingTestimonials', JSON.stringify(this.pendingTestimonials)); },
+                approveTestimonial(index) {
+                    const review = this.pendingTestimonials.splice(index, 1)[0];
+                    if (!review) return;
+                    if (!Array.isArray(this.siteData.approvedTestimonials)) this.siteData.approvedTestimonials = [];
+                    this.siteData.approvedTestimonials.push(review);
+                    this.savePendingTestimonials();
+                    localStorage.setItem('bedAlu_data', JSON.stringify(this.siteData));
+                },
+                rejectTestimonial(index) { this.pendingTestimonials.splice(index, 1); this.savePendingTestimonials(); },
+
+                removeProject(index) {
+                    if (confirm("هل أنت متأكد من حذف هذه الصورة؟")) {
+                        this.siteData.projects.splice(index, 1);
+                    }
+                },
+
+                saveAll() {
+                    // محاكاة حفظ البيانات في LocalStorage
+                    localStorage.setItem('bedAlu_data', JSON.stringify(this.siteData));
+                    this.showNotify = true;
+                    setTimeout(() => this.showNotify = false, 3000);
+                },
+
+                init() {
+                    // تحميل البيانات المحفوظة إن وجدت
+                    const saved = localStorage.getItem('bedAlu_data');
+                    if (saved) {
+                        const stored = this.repairSavedText(JSON.parse(saved));
+                        if (Array.isArray(stored.projects)) stored.projects = stored.projects.map((project, index) => typeof project === 'string' ? {id:`project-${index + 1}`,image:project,title_ar:'',title_fr:'',title_en:'',caption_ar:'',caption_fr:'',caption_en:''} : project);
+                        this.siteData = this.mergeDefaults(this.siteData, stored);
+                        if (!Array.isArray(stored.calculatorProducts) && stored.pricing) {
+                            this.siteData.calculatorProducts.forEach(product => { if (stored.pricing[product.id] !== undefined) product.price = Number(stored.pricing[product.id]); });
+                        }
+                    }
+                    this.pendingTestimonials = this.repairSavedText(JSON.parse(localStorage.getItem('bedAlu_pendingTestimonials') || '[]'));
+                    window.addEventListener('storage', event => {
+                        if (event.key === 'bedAlu_pendingTestimonials' && event.newValue) this.pendingTestimonials = this.repairSavedText(JSON.parse(event.newValue));
+                        if (event.key === 'bedAlu_data' && event.newValue) this.siteData = this.mergeDefaults(this.siteData, this.repairSavedText(JSON.parse(event.newValue)));
+                    });
+                },
+
+                repairSavedText(value) {
+                    if (typeof value === 'string') {
+                        if (!/[ØÙÃÂ]/.test(value)) return value;
+                        try { return decodeURIComponent(escape(value)); } catch (_) { return value; }
+                    }
+                    if (Array.isArray(value)) return value.map(item => this.repairSavedText(item));
+                    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, this.repairSavedText(item)]));
+                    return value;
+                },
+
+                mergeDefaults(defaults, stored) {
+                    if (Array.isArray(defaults)) {
+                        if (!Array.isArray(stored)) return defaults;
+                        return stored.map((value, index) => defaults[index] === undefined ? value : this.mergeDefaults(defaults[index], value));
+                    }
+                    if (defaults && typeof defaults === 'object') {
+                        const merged = { ...defaults };
+                        Object.entries(stored || {}).forEach(([key, value]) => {
+                            merged[key] = key in defaults ? this.mergeDefaults(defaults[key], value) : value;
+                        });
+                        return merged;
+                    }
+                    return stored === undefined || stored === null ? defaults : stored;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
