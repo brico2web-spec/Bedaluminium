@@ -29,9 +29,16 @@
                 headers: { apikey: PUBLISHABLE_KEY, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });
-            if (!response.ok) throw new Error('Supabase sign-in failed: ' + await response.text());
+            if (!response.ok) {
+                let details = {};
+                try { details = await response.json(); } catch (_) {}
+                if (details.error_code === 'invalid_credentials') {
+                    throw new Error('بيانات الدخول غير صحيحة. تأكد من وجود المستخدم في Supabase Authentication أو استرجع كلمة مروره.');
+                }
+                throw new Error(details.msg || 'تعذر تسجيل الدخول إلى Supabase.');
+            }
             const session = await response.json();
-            if (session.user?.app_metadata?.role !== 'admin') throw new Error('This account is not assigned the admin role.');
+            if (session.user?.app_metadata?.role !== 'admin') throw new Error('حساب Supabase هذا لا يحمل صلاحية admin بعد.');
             sessionStorage.setItem(TOKEN_KEY, session.access_token);
             return session.user;
         },
