@@ -61,7 +61,7 @@
 
     <!-- NAVIGATION -->
     <nav class="fixed top-0 w-full z-[100] glass-nav border-b border-gray-100">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex justify-between items-center gap-2">
             <!-- Brand -->
             <div class="flex items-center gap-3 cursor-pointer" @click="activeTab = 'home'">
                 <div class="w-12 h-12 bg-arch-charcoal rounded-xl shadow-lg flex items-center justify-center overflow-hidden border border-arch-bronze/20">
@@ -87,22 +87,33 @@
             </div>
 
             <!-- Lang & CTA -->
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 sm:gap-4 shrink-0">
                 <div class="relative" @click.outside="langMenuOpen = false">
-                    <button @click="langMenuOpen = !langMenuOpen" class="text-xs font-bold bg-gray-100 px-4 py-2 rounded-lg hover:bg-arch-charcoal hover:text-white transition inline-flex items-center gap-2" :aria-label="content[lang].language" :aria-expanded="langMenuOpen"><span x-text="languageName()"></span><i class="fa-solid fa-chevron-down text-[9px]"></i></button>
+                    <button @click="langMenuOpen = !langMenuOpen" class="text-[10px] sm:text-xs font-bold bg-gray-100 px-2.5 sm:px-4 py-2 rounded-lg hover:bg-arch-charcoal hover:text-white transition inline-flex items-center gap-2" :aria-label="content[lang].language" :aria-expanded="langMenuOpen"><span x-text="languageName()"></span><i class="fa-solid fa-chevron-down text-[9px]"></i></button>
                     <div x-show="langMenuOpen" x-transition class="absolute top-full mt-2 right-0 min-w-36 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-[120]">
                         <template x-for="option in languageOptions" :key="option.id"><button @click="setLanguage(option.id)" class="w-full px-4 py-3 text-sm text-start hover:bg-arch-offwhite" :class="lang === option.id ? 'text-arch-bronze font-bold' : 'text-gray-600'" x-text="option.label"></button></template>
                     </div>
                 </div>
-                <button @click="activeTab = 'contact'" class="bg-arch-charcoal text-white px-6 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-xl hover:bg-arch-bronze transition">
+                <button @click="activeTab = 'contact'" class="bg-arch-charcoal text-white px-3 sm:px-6 py-2.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-widest shadow-xl hover:bg-arch-bronze transition">
                     <span x-text="content[lang].nav.cta"></span>
                 </button>
+            </div>
+        </div>
+        <div class="lg:hidden max-w-7xl mx-auto px-3 pb-3">
+            <div class="grid grid-cols-3 gap-1.5">
+                <template x-for="tab in tabs" :key="'mobile-' + tab.id">
+                    <button x-show="tab.id !== 'calc' || !siteData.features || siteData.features.calc !== false" @click="activeTab = tab.id"
+                            class="min-h-10 w-full rounded-lg border px-1.5 py-2 text-center text-[10px] sm:text-xs font-bold leading-tight transition"
+                            :class="activeTab === tab.id ? 'border-arch-bronze bg-arch-bronze text-white' : 'border-gray-200 bg-white/70 text-gray-600 hover:border-arch-bronze hover:text-arch-bronze'">
+                        <span x-text="content[lang].nav[tab.id]"></span>
+                    </button>
+                </template>
             </div>
         </div>
     </nav>
 
     <!-- MAIN CONTENT -->
-    <main class="pt-20">
+    <main class="pt-44 lg:pt-20">
 
         <!-- HOME SECTION -->
         <section x-show="activeTab === 'home'" x-cloak class="fade-in">
