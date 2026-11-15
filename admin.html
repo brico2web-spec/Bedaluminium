@@ -58,7 +58,7 @@
         <aside class="w-72 bg-admin-dark text-white p-6 flex flex-col fixed h-full z-50">
             <div class="flex items-center gap-3 mb-10 px-2">
                 <div class="w-10 h-10 bg-admin-accent flex items-center justify-center rounded-lg overflow-hidden">
-                    <img x-show="siteData.logo" :src="siteData.logo" class="w-full h-full object-cover"><span x-show="!siteData.logo" class="font-bold text-xl">B</span>
+                    <img x-show="siteData.logo" :src="mediaUrl(siteData.logo)" class="w-full h-full object-cover"><span x-show="!siteData.logo" class="font-bold text-xl">B</span>
                 </div>
                 <h1 class="text-lg font-bold tracking-tighter">لوحة التحكم</h1>
             </div>
@@ -107,7 +107,7 @@
                             <label class="block text-sm font-bold">شعار الموقع (Logo)</label>
                             <div class="flex items-center gap-6 p-4 border-2 border-dashed rounded-2xl">
                                 <div class="w-20 h-20 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
-                                    <img :src="siteData.logo" x-show="siteData.logo" class="w-full h-full object-contain">
+                                    <img :src="mediaUrl(siteData.logo)" x-show="siteData.logo" class="w-full h-full object-contain">
                                     <i x-show="!siteData.logo" class="fa-solid fa-image text-slate-300 text-2xl"></i>
                                 </div>
                                 <input type="file" @change="handleLogoUpload" class="text-xs">
@@ -157,7 +157,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <template x-for="(img, index) in siteData.slider">
                             <div class="relative h-56 rounded-xl overflow-hidden shadow-md bg-slate-100 p-2">
-                                <img :src="img" class="w-full h-32 rounded-lg object-cover">
+                                <img :src="mediaUrl(img)" class="w-full h-32 rounded-lg object-cover">
                                 <input type="url" x-model="siteData.slider[index]" placeholder="رابط الصورة" class="w-full mt-2 text-xs" dir="ltr">
                                 <button @click="removeSlider(index)" class="absolute top-3 left-3 bg-red-500 text-white w-8 h-8 rounded-full"><i class="fa-solid fa-trash-can"></i></button>
                             </div>
@@ -193,7 +193,7 @@
                                     <div class="space-y-4">
                                         <label class="block text-xs font-bold uppercase text-slate-400 tracking-widest">صورة الخدمة</label>
                                         <div class="h-48 rounded-2xl overflow-hidden">
-                                            <img :src="service.img" class="w-full h-full object-cover">
+                                            <img :src="mediaUrl(service.img)" class="w-full h-full object-cover">
                                         </div>
                                         <input type="text" x-model="service.img" placeholder="رابط صورة الخدمة" class="w-full text-xs">
                                     </div>
@@ -214,7 +214,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                         <template x-for="(project, pIdx) in siteData.projects" :key="project.id || pIdx">
                             <div class="group rounded-xl overflow-hidden bg-slate-50 border p-3">
-                                <div class="h-44 rounded-lg overflow-hidden bg-slate-200 flex items-center justify-center"><img x-show="project.image" :src="project.image" class="w-full h-full object-cover"><i x-show="!project.image" class="fa-solid fa-image text-slate-400 text-3xl"></i></div>
+                                <div class="h-44 rounded-lg overflow-hidden bg-slate-200 flex items-center justify-center"><img x-show="project.image" :src="mediaUrl(project.image)" class="w-full h-full object-cover"><i x-show="!project.image" class="fa-solid fa-image text-slate-400 text-3xl"></i></div>
                                 <input type="url" x-model="project.image" class="w-full mt-3 text-xs" placeholder="رابط صورة المشروع" dir="ltr">
                                 <div class="grid grid-cols-1 gap-2 mt-3"><input type="text" x-model="project.title_ar" placeholder="عنوان المشروع بالعربية"><input type="text" x-model="project.title_fr" placeholder="Titre du projet en français"><input type="text" x-model="project.title_en" placeholder="Project title in English"><textarea x-model="project.caption_ar" rows="2" placeholder="عبارة المشروع بالعربية"></textarea><textarea x-model="project.caption_fr" rows="2" placeholder="Légende du projet en français"></textarea><textarea x-model="project.caption_en" rows="2" placeholder="Project caption in English"></textarea></div>
                                 <button @click="removeProject(pIdx)" class="mt-3 text-red-600 text-sm font-bold"><i class="fa-solid fa-trash-can ml-1"></i>حذف المشروع</button>
@@ -358,6 +358,18 @@
                     } else {
                         this.loginError = 'اسم المستخدم أو كلمة المرور غير صحيحة.';
                     }
+                },
+                mediaUrl(value) {
+                    const raw = String(value || '').trim();
+                    try {
+                        const url = new URL(raw);
+                        if (/(^|\.)dropbox\.com$/i.test(url.hostname) && url.hostname !== 'dl.dropboxusercontent.com') {
+                            url.searchParams.delete('dl');
+                            url.searchParams.set('raw', '1');
+                            return url.toString();
+                        }
+                    } catch (_) {}
+                    return raw;
                 },
                 menus: [
                     { id: 'identity', name: 'الهوية والشعار', icon: 'fa-solid fa-id-card' },
